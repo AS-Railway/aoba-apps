@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11151c">
+<title>しずかな机</title>
+<style>
+  :root {
+    --bg: #11151c; --surface: #19202a; --surface-2: #222b37; --text: #e8ebf0; --muted: #a3acb9;
+    --line: #2d3746; --accent: #8fb8ff; --accent-strong: #b5d0ff; --accent-soft: #23324a; --on-accent: #0d1626;
+    --rest: #9ad6b4; --rest-soft: #213a30; --warn: #f2a68e; --ring-track: #263040;
+    --radius: 20px;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f2ec; --surface: #ffffff; --surface-2: #eeebe3; --text: #20242b; --muted: #5d636d;
+    --line: #dedad0; --accent: #2f5fb0; --accent-strong: #234a8c; --accent-soft: #dfe8f7; --on-accent: #ffffff;
+    --rest: #2b7a52; --rest-soft: #dcefe4; --warn: #b4472c; --ring-track: #e4e0d6;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; display: flex; flex-direction: column; gap: 14px; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 6px 2px; }
+  header h1 { margin: 0; font-size: 21px; flex: 1; letter-spacing: .04em; }
+  header h1 small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 18px; flex: none; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  .stat b { display: block; font-size: 24px; line-height: 1.2; }
+  .stat b small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .act { margin-left: auto; }
+  .sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .field { margin-bottom: 14px; }
+  .field > .label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { min-height: 44px; padding: 0 16px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--surface-2); display: inline-flex; align-items: center; gap: 6px; }
+  .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
+  .chip .x { margin-left: 2px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--line); font-size: 13px; }
+  .chip-wrap { position: relative; display: inline-flex; }
+  .chip-wrap .del { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--warn); color: var(--on-accent); font-size: 14px; display: grid; place-items: center; }
+  .editing-off .del { display: none; }
+  form.add { display: flex; gap: 8px; margin-top: 10px; }
+  form.add input { flex: 1; min-width: 0; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px; }
+  .link { background: none; border: 0; color: var(--accent); font-size: 13px; min-height: 44px; padding: 0 4px; }
+
+  .btn { min-height: 48px; padding: 0 20px; border-radius: 14px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .btn.ghost { background: var(--surface-2); color: var(--text); font-weight: 500; border: 1px solid var(--line); }
+  .btn.big { width: 100%; min-height: 60px; font-size: 18px; border-radius: 16px; }
+  .summary { font-size: 13px; color: var(--muted); text-align: center; margin: 8px 0 0; }
+
+  /* mixer */
+  details.mixer summary { list-style: none; cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  details.mixer summary::-webkit-details-marker { display: none; }
+  details.mixer summary::after { content: "▾"; margin-left: auto; transition: transform .2s; }
+  details.mixer[open] summary::after { transform: rotate(180deg); }
+  .slider { display: grid; grid-template-columns: 7.5em 1fr 3em; align-items: center; gap: 10px; min-height: 44px; }
+  .slider label { font-size: 14px; }
+  .slider output { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); background: transparent; }
+
+  /* log */
+  .chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 120px; align-items: end; margin-top: 4px; }
+  .chart .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; min-width: 0; }
+  .chart .v { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chart .b { width: 100%; max-width: 30px; border-radius: 6px 6px 3px 3px; background: var(--accent); }
+  .chart .b.zero { background: var(--line); height: 3px !important; }
+  .chart .d { font-size: 12px; color: var(--muted); }
+  .chart .today .d { color: var(--text); font-weight: 700; }
+  .chart .today .b:not(.zero) { background: var(--accent-strong); }
+  .subj { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .subj li { display: grid; grid-template-columns: 6em 1fr 3.5em; align-items: center; gap: 10px; font-size: 14px; }
+  .subj .track { height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .subj .fill { height: 100%; background: var(--accent); border-radius: 99px; }
+  .subj .m { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); font-size: 14px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; margin-top: 10px; }
+
+  /* focus screen */
+  .focus { position: fixed; inset: 0; background: var(--bg); z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); gap: 18px; text-align: center; }
+  .focus .phase { font-size: 14px; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+  .focus.rest .phase { color: var(--rest); }
+  .focus .subj-name { font-size: 20px; font-weight: 700; margin-top: -10px; }
+  .ring { position: relative; width: min(72vw, 300px); aspect-ratio: 1; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .arc { stroke: var(--accent); transition: stroke-dashoffset .3s linear; }
+  .focus.rest .ring .arc { stroke: var(--rest); }
+  .ring .time { position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(44px, 15vw, 64px); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .ring .paused { position: absolute; left: 0; right: 0; bottom: 26%; font-size: 13px; color: var(--muted); }
+  .tip { background: var(--rest-soft); color: var(--text); border-radius: 16px; padding: 14px 18px; max-width: 360px; }
+  .tip b { display: block; font-size: 18px; color: var(--rest); }
+  .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; max-width: 360px; }
+  .controls .btn { flex: 1; min-width: 120px; }
+  .soundbar { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  .soundbar .icon-btn { width: auto; padding: 0 14px; gap: 6px; display: inline-flex; font-size: 14px; }
+  .breathe { animation: breathe 8s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scale(1.03); } }
+
+  /* dialog */
+  dialog { border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--text); padding: 20px; width: min(92vw, 380px); }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog h3 { margin: 0 0 6px; font-size: 18px; }
+  dialog p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  dialog .stack { display: flex; flex-direction: column; gap: 8px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; visibility: hidden; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 14px; max-width: calc(100% - 32px); width: max-content; transition: all .25s; z-index: 20; font-size: 15px; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="home">
+  <header>
+    <h1>しずかな机<small id="dateLabel"></small></h1>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="ライト・ダークを切り替え">◐</button>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><span>今日の集中</span><b id="todayMin">0<small>分</small></b></div>
+    <div class="stat"><span>連続</span><b id="streak">0<small>日</small></b></div>
+  </div>
+
+  <section class="card" aria-labelledby="h-start">
+    <h2 id="h-start">集中をはじめる</h2>
+    <p class="sub">前回の設定を覚えています。そのまま「はじめる」でOK。</p>
+
+    <div class="field editing-off" id="subjField">
+      <div class="label"><span id="l-subj">科目</span><button class="link" type="button" id="subjEdit">編集</button></div>
+      <div class="chips" id="subjects" role="group" aria-labelledby="l-subj"></div>
+      <form class="add" id="subjForm" hidden>
+        <label class="sr" for="subjInput">科目を追加</label>
+        <input id="subjInput" placeholder="例：物理" maxlength="12" enterkeyhint="done" autocomplete="off">
+        <button class="btn">追加</button>
+      </form>
+    </div>
+
+    <div class="field">
+      <div class="label"><span id="l-len">集中する時間</span></div>
+      <div class="chips" id="lens" role="group" aria-labelledby="l-len"></div>
+    </div>
+
+    <div class="field">
+      <div class="label"><span id="l-snd">音</span></div>
+      <div class="chips" id="presets" role="group" aria-labelledby="l-snd"></div>
+      <details class="mixer" id="mixer">
+        <summary>音のバランスを調整</summary>
+        <div id="sliders"></div>
+        <button class="link" type="button" id="previewBtn">試聴する</button>
+      </details>
+    </div>
+
+    <button class="btn big" type="button" id="startBtn">はじめる</button>
+    <p class="summary" id="summary"></p>
+  </section>
+
+  <section class="card" aria-labelledby="h-log">
+    <h2 id="h-log">学習ログ</h2>
+    <p class="sub">直近7日の集中時間（分）</p>
+    <div class="chart" id="chart" role="img"></div>
+    <div id="subjLog"></div>
+  </section>
+</div>
+
+<!-- 集中画面 -->
+<div class="focus" id="focus" hidden role="region" aria-label="集中画面">
+  <div class="phase" id="phaseLabel">集中</div>
+  <div class="subj-name" id="focusSubj"></div>
+  <div class="ring" id="ringBox">
+    <svg viewBox="0 0 240 240" aria-hidden="true">
+      <circle cx="120" cy="120" r="110" fill="none" stroke="var(--ring-track)" stroke-width="8"/>
+      <circle class="arc" id="arc" cx="120" cy="120" r="110" fill="none" stroke-width="8" stroke-linecap="round" stroke-dasharray="691.15" stroke-dashoffset="0"/>
+    </svg>
+    <div class="time" id="time" role="timer" aria-live="off">25:00</div>
+    <div class="paused" id="pausedLabel" hidden>一時停止中</div>
+  </div>
+  <div class="tip" id="tip" hidden></div>
+  <div class="controls" id="runControls">
+    <button class="btn ghost" type="button" id="pauseBtn">一時停止</button>
+    <button class="btn ghost" type="button" id="stopBtn">終了</button>
+  </div>
+  <div class="controls" id="nextControls" hidden>
+    <button class="btn" type="button" id="againBtn">もう1セット</button>
+    <button class="btn ghost" type="button" id="doneBtn">今日はここまで</button>
+  </div>
+  <div class="soundbar">
+    <button class="icon-btn" type="button" id="muteBtn" aria-pressed="false">🔊 環境音オン</button>
+  </div>
+  <div class="sr" id="announce" aria-live="assertive"></div>
+</div>
+
+<dialog id="stopDlg" aria-labelledby="stopTitle">
+  <h3 id="stopTitle">集中を終えますか？</h3>
+  <p id="stopText"></p>
+  <div class="stack">
+    <button class="btn" type="button" id="stopSave">ここまでを記録して終える</button>
+    <button class="btn ghost" type="button" id="stopDiscard">記録せずに終える</button>
+    <button class="btn ghost" type="button" id="stopCancel">続ける</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const KEY = 'quietdesk-v2';
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayKey = () => fmt(new Date());
+  const shiftKey = (k, n) => { const [y, m, d] = k.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
+  const keyDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  const SOUNDS = [['rain', '雨'], ['fire', '焚き火'], ['wave', '波'], ['pencil', '鉛筆の音'], ['clock', '時計'], ['white', 'ホワイトノイズ']];
+  const PRESETS = {
+    library: { name: '🌧 雨の図書館', vol: { rain: .65, fire: 0, wave: 0, pencil: .35, clock: .15, white: 0 } },
+    campfire: { name: '🔥 焚き火と鉛筆', vol: { rain: 0, fire: .7, wave: 0, pencil: .45, clock: 0, white: 0 } },
+    sea: { name: '🌊 夜の海', vol: { rain: 0, fire: 0, wave: .8, pencil: 0, clock: 0, white: .08 } },
+    custom: { name: '🎚 カスタム', vol: null },
+    silent: { name: '🔇 無音', vol: { rain: 0, fire: 0, wave: 0, pencil: 0, clock: 0, white: 0 } }
+  };
+  const LENS = [15, 25, 50];
+  const breakFor = min => (min >= 50 ? 10 : 5);
+  const TIPS = [
+    ['目を閉じて20秒', '画面から目を離して、まぶたの裏で休ませよう'],
+    ['肩をゆっくり回す', '前に5回、後ろに5回。呼吸は止めずに'],
+    ['水を一口', 'のどが渇く前に、少しだけ'],
+    ['遠くを見る', '窓の外、6m以上先をぼんやり20秒'],
+    ['立って伸びをする', '両手を上に。背中がのびるのを感じて']
+  ];
+
+  // ---------- データ ----------
+  const fresh = () => ({ subjects: ['数学', '英語', '国語'], logs: [], custom: { rain: .5, fire: 0, wave: 0, pencil: .3, clock: 0, white: 0 },
+    last: { subject: '数学', min: 25, preset: 'library' }, run: null, theme: null });
+  function readStore() {
+    try { const raw = localStorage.getItem(KEY); if (!raw) return null; const d = JSON.parse(raw); return d && Array.isArray(d.logs) ? d : 'broken'; }
+    catch (e) { return 'broken'; }
+  }
+  let db = (() => {
+    const d = readStore();
+    if (d === 'broken') { try { localStorage.setItem(KEY + '-broken-' + Date.now(), localStorage.getItem(KEY)); } catch (_) {} return fresh(); }
+    return Object.assign(fresh(), d || {});
+  })();
+  let warned = false;
+  function save() {
+    // 別タブの記録を消さないよう、保存前にログをマージする
+    const other = readStore();
+    if (other && other !== 'broken') {
+      const ids = new Set(db.logs.map(l => l.id));
+      other.logs.forEach(l => { if (!ids.has(l.id) && !(db.deleted || []).includes(l.id)) db.logs.push(l); });
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(db)); warned = false; }
+    catch (e) { if (!warned) { toast('保存できませんでした（プライベートモードや容量不足の可能性）'); warned = true; } }
+  }
+  addEventListener('storage', e => {
+    if (e.key !== KEY) return;
+    const d = readStore(); if (!d || d === 'broken') return;
+    const ids = new Set(db.logs.map(l => l.id));
+    d.logs.forEach(l => { if (!ids.has(l.id)) db.logs.push(l); });
+    renderHome();
+  });
+
+  let toastT;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
+  const announce = msg => { $('announce').textContent = ''; setTimeout(() => $('announce').textContent = msg, 50); };
+
+  // ---------- 音（Web Audio でその場で生成） ----------
+  const A = { ctx: null, ambient: null, gains: {}, sched: null, chimeNodes: [], muted: false };
+  function makeLoop(type, seconds = 10) {
+    // つなぎ目でクリックしないよう、末尾を先頭にクロスフェードしたループ用バッファ
+    const sr = A.ctx.sampleRate, L = sr * seconds, F = Math.floor(sr * .5);
+    const raw = new Float32Array(L + F); let last = 0, b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const w = Math.random() * 2 - 1;
+      if (type === 'brown') { last = (last + .02 * w) / 1.02; raw[i] = last * 3.5; }
+      else if (type === 'pink') { b0 = .997 * b0 + w * .029591; b1 = .985 * b1 + w * .032534; b2 = .95 * b2 + w * .048056; raw[i] = (b0 + b1 + b2 + w * .05) * 2.2; }
+      else raw[i] = w * .6;
+    }
+    const buf = A.ctx.createBuffer(1, L, sr), d = buf.getChannelData(0);
+    for (let i = 0; i < L; i++) d[i] = raw[i];
+    for (let i = 0; i < F; i++) { const t = i / F; d[i] = raw[i] * t + raw[L + i] * (1 - t); }
+    return buf;
+  }
+  const filt = (type, f, q = .7) => { const n = A.ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; n.Q.value = q; return n; };
+  function chain(src, nodes, dest) { let n = src; nodes.forEach(x => { n.connect(x); n = x; }); n.connect(dest); return src; }
+  function loopSrc(buf, nodes, dest) { const s = A.ctx.createBufferSource(); s.buffer = buf; s.loop = true; chain(s, nodes, dest); s.start(); }
+
+  function initAudio() {
+    if (A.ctx) return;
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) { toast('このブラウザは音の再生に対応していません'); return; }
+    A.ctx = new C();
+    const comp = A.ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(A.ctx.destination);
+    A.ambient = A.ctx.createGain(); A.ambient.gain.value = 0; A.ambient.connect(comp);
+    A.chimeBus = A.ctx.createGain(); A.chimeBus.gain.value = .9; A.chimeBus.connect(comp);
+    SOUNDS.forEach(([k]) => { const g = A.ctx.createGain(); g.gain.value = 0; g.connect(A.ambient); A.gains[k] = g; });
+    A.white = makeLoop('white'); A.brown = makeLoop('brown'); A.pink = makeLoop('pink');
+    loopSrc(A.pink, [filt('highpass', 400), filt('lowpass', 3200)], A.gains.rain);
+    loopSrc(A.brown, [filt('highpass', 30), filt('lowpass', 450)], A.gains.fire);
+    const wv = A.ctx.createGain(); wv.gain.value = .5; wv.connect(A.gains.wave);
+    const lfo = A.ctx.createOscillator(), lg = A.ctx.createGain(); lfo.frequency.value = .09; lg.gain.value = .42; lfo.connect(lg); lg.connect(wv.gain); lfo.start();
+    loopSrc(A.brown, [filt('highpass', 40), filt('lowpass', 800)], wv);
+    const wg = A.ctx.createGain(); wg.gain.value = .35; wg.connect(A.gains.white);
+    loopSrc(A.pink, [filt('lowpass', 6000)], wg);
+  }
+  // 短い粒の音：立ち上がりを付けてプチッとしないように
+  function grain(dest, freq, dur, vol, at, q = 1.4) {
+    const c = A.ctx, s = c.createBufferSource(); s.buffer = A.white;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .004); g.gain.exponentialRampToValueAtTime(.0008, at + dur);
+    chain(s, [filt('bandpass', freq, q), g], dest);
+    s.start(at, Math.random() * 8); s.stop(at + dur + .05);
+  }
+  let tickAt = 0, pencilUntil = 0;
+  function schedTick() {
+    const c = A.ctx, now = c.currentTime, v = k => A.gains[k].gain.value > .01;
+    if (v('fire') && Math.random() < .35) grain(A.gains.fire, 1200 + Math.random() * 2500, .02 + Math.random() * .03, .7, now + Math.random() * .2, 2);
+    if (v('rain')) for (let i = 0; i < 2; i++) if (Math.random() < .7) grain(A.gains.rain, 2500 + Math.random() * 3500, .015, .18, now + Math.random() * .2, 3);
+    if (v('pencil')) {
+      if (now > pencilUntil && Math.random() < .08) pencilUntil = now + 1 + Math.random() * 2.5; // 書いている時間と止まる時間
+      if (now < pencilUntil && Math.random() < .75) grain(A.gains.pencil, 3800 + Math.random() * 1800, .07 + Math.random() * .12, .22, now + Math.random() * .2, 1.1);
+    }
+    if (v('clock')) {
+      if (tickAt < now) tickAt = Math.ceil(now);
+      while (tickAt < now + .4) {
+        const o = c.createOscillator(), g = c.createGain(); o.frequency.value = 2200;
+        g.gain.setValueAtTime(0, tickAt); g.gain.linearRampToValueAtTime(.12, tickAt + .002); g.gain.exponentialRampToValueAtTime(.0008, tickAt + .025);
+        o.connect(g); g.connect(A.gains.clock); o.start(tickAt); o.stop(tickAt + .04); tickAt += 1;
+      }
+    }
+  }
+  function startSched() { if (!A.sched) A.sched = setInterval(schedTick, 200); }
+  function stopSched() { clearInterval(A.sched); A.sched = null; }
+  function applyMix(vol, level = 1, secs = .25) {
+    if (!A.ctx) return;
+    const t = A.ctx.currentTime;
+    SOUNDS.forEach(([k]) => A.gains[k].gain.setTargetAtTime(vol[k], t, .08));
+    A.ambient.gain.setTargetAtTime(A.muted ? 0 : level, t, secs / 3);
+  }
+  async function audioOn() {
+    initAudio(); if (!A.ctx) return;
+    try { await A.ctx.resume(); } catch (_) {}
+    startSched();
+  }
+  function audioIdle() { // 何も鳴らす必要がないときは止めて電池を守る
+    if (!A.ctx) return;
+    applyMix(currentVol(), 0, .3); stopSched();
+    setTimeout(() => { if (!run && !previewing && A.ctx) A.ctx.suspend(); }, 600);
+  }
+  // 終わりの合図：環境音とは別の経路に、終了時刻ちょうどで予約しておく
+  function scheduleChime(msFromNow) {
+    cancelChime();
+    if (!A.ctx) return;
+    const base = A.ctx.currentTime + Math.max(0, msFromNow) / 1000;
+    [[659.25, 0], [987.77, .35], [1318.5, .7]].forEach(([f, d]) => {
+      const o = A.ctx.createOscillator(), g = A.ctx.createGain(), t = base + d;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .01); g.gain.exponentialRampToValueAtTime(.0008, t + 2.2);
+      o.connect(g); g.connect(A.chimeBus); o.start(t); o.stop(t + 2.3);
+      A.chimeNodes.push([o, t]);
+    });
+  }
+  // 鳴り始めたチャイムは最後まで鳴らし、まだ先の予約だけを取り消す
+  function cancelChime() {
+    const now = A.ctx ? A.ctx.currentTime : 0;
+    A.chimeNodes.forEach(([o, t]) => { if (t > now) { try { o.stop(); } catch (_) {} } });
+    A.chimeNodes = [];
+  }
+
+  // ---------- 選択状態 ----------
+  const currentVol = () => db.last.preset === 'custom' ? db.custom : PRESETS[db.last.preset].vol;
+  let previewing = false;
+
+  function renderSetup() {
+    const sw = $('subjects'); sw.innerHTML = '';
+    if (!db.subjects.includes(db.last.subject)) db.last.subject = db.subjects[0] || '';
+    db.subjects.forEach((s, i) => {
+      const w = document.createElement('span'); w.className = 'chip-wrap';
+      w.innerHTML = '<button class="chip" type="button"></button><button class="del" type="button">×</button>';
+      const b = w.querySelector('.chip'); b.textContent = s; b.setAttribute('aria-pressed', s === db.last.subject);
+      b.onclick = () => { db.last.subject = s; save(); renderSetup(); };
+      const del = w.querySelector('.del'); del.setAttribute('aria-label', `科目「${s}」を削除`);
+      del.onclick = () => {
+        if (db.subjects.length <= 1) { toast('科目は1つ以上必要です'); return; }
+        db.subjects.splice(i, 1); save(); renderSetup(); toast(`「${s}」を削除しました（記録は残ります）`);
+      };
+      sw.appendChild(w);
+    });
+    const lw = $('lens'); lw.innerHTML = '';
+    LENS.forEach(m => {
+      const b = document.createElement('button'); b.className = 'chip'; b.type = 'button';
+      b.textContent = `${m}分`; b.setAttribute('aria-pressed', m === db.last.min);
+      b.setAttribute('aria-label', `${m}分集中、${breakFor(m)}分休憩`);
+      b.onclick = () => { db.last.min = m; save(); renderSetup(); };
+      lw.appendChild(b);
+    });
+    const pw = $('presets'); pw.innerHTML = '';
+    Object.entries(PRESETS).forEach(([k, p]) => {
+      const b = document.createElement('button'); b.className = 'chip'; b.type = 'button';
+      b.textContent = p.name; b.setAttribute('aria-pressed', k === db.last.preset);
+      b.onclick = () => { db.last.preset = k; save(); renderSetup(); if (k === 'custom') $('mixer').open = true; if (previewing) applyMix(currentVol(), 1); };
+      pw.appendChild(b);
+    });
+    const sl = $('sliders'); sl.innerHTML = '';
+    const vol = currentVol();
+    SOUNDS.forEach(([k, name]) => {
+      const row = document.createElement('div'); row.className = 'slider';
+      row.innerHTML = `<label for="s-${k}">${name}</label><input type="range" id="s-${k}" min="0" max="1" step="0.05"><output></output>`;
+      const r = row.querySelector('input'), out = row.querySelector('output');
+      r.value = vol[k]; out.textContent = Math.round(vol[k] * 100);
+      r.oninput = () => {
+        if (db.last.preset !== 'custom') { db.custom = { ...currentVol() }; db.last.preset = 'custom'; renderPresetsOnly(); }
+        db.custom[k] = +r.value; out.textContent = Math.round(r.value * 100);
+        if (A.ctx) applyMix(db.custom, A.muted ? 0 : (run && run.phase === 'break' ? .35 : 1));
+      };
+      r.onchange = save;
+      sl.appendChild(row);
+    });
+    $('summary').textContent = `${db.last.subject}・${db.last.min}分集中 → ${breakFor(db.last.min)}分休憩・${PRESETS[db.last.preset].name.replace(/^\S+ /, '')}`;
+  }
+  function renderPresetsOnly() { $('presets').querySelectorAll('.chip').forEach((b, i) => b.setAttribute('aria-pressed', Object.keys(PRESETS)[i] === db.last.preset)); }
+
+  $('subjEdit').onclick = () => {
+    const f = $('subjField'), off = f.classList.toggle('editing-off');
+    $('subjForm').hidden = off; $('subjEdit').textContent = off ? '編集' : '完了';
+    if (!off) $('subjInput').focus();
+  };
+  $('subjForm').onsubmit = e => {
+    e.preventDefault();
+    const v = $('subjInput').value.trim(); if (!v) return;
+    if (db.subjects.includes(v)) { toast('同じ科目があります'); return; }
+    db.subjects.push(v); db.last.subject = v; $('subjInput').value = ''; save(); renderSetup(); $('subjInput').focus();
+  };
+  $('previewBtn').onclick = async () => {
+    if (previewing) { previewing = false; $('previewBtn').textContent = '試聴する'; audioIdle(); return; }
+    await audioOn(); previewing = true; A.muted = false; applyMix(currentVol(), 1, .8); $('previewBtn').textContent = '試聴を止める';
+  };
+
+  // ---------- ログ ----------
+  const sumDay = k => db.logs.filter(l => l.date === k).reduce((a, l) => a + l.min, 0);
+  function streak() {
+    let k = todayKey(); if (!sumDay(k)) k = shiftKey(k, -1);
+    let n = 0; while (sumDay(k) > 0) { n++; k = shiftKey(k, -1); } return n;
+  }
+  function renderHome() {
+    const k = todayKey();
+    $('dateLabel').textContent = keyDate(k).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+    $('todayMin').innerHTML = `${sumDay(k)}<small>分</small>`;
+    const st = streak(); $('streak').innerHTML = `${st}<small>日</small>`;
+    const vals = []; for (let i = 6; i >= 0; i--) { const kk = shiftKey(k, -i); vals.push([kk, sumDay(kk)]); }
+    const max = Math.max(60, ...vals.map(v => v[1]));
+    const ch = $('chart'); ch.innerHTML = ''; const desc = [];
+    vals.forEach(([kk, v], i) => {
+      const wd = i === 6 ? '今日' : keyDate(kk).toLocaleDateString('ja-JP', { weekday: 'short' });
+      const col = document.createElement('div'); col.className = 'col' + (i === 6 ? ' today' : '');
+      col.innerHTML = `<span class="v">${v || ''}</span><div class="b ${v ? '' : 'zero'}" style="height:${v / max * 78}%"></div><span class="d">${wd}</span>`;
+      ch.appendChild(col); desc.push(`${wd} ${v}分`);
+    });
+    ch.setAttribute('aria-label', '直近7日の集中時間。' + desc.join('、'));
+    const by = {}; db.logs.filter(l => l.date === k).forEach(l => by[l.subject] = (by[l.subject] || 0) + l.min);
+    const ent = Object.entries(by).sort((a, b) => b[1] - a[1]), top = ent.length ? ent[0][1] : 1;
+    const sl = $('subjLog');
+    if (!ent.length) sl.innerHTML = '<div class="empty">今日はまだ記録がありません。まずは15分から始めてみましょう。</div>';
+    else {
+      sl.innerHTML = '<ul class="subj"></ul>';
+      ent.forEach(([s, m]) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span></span><div class="track"><div class="fill" style="width:${m / top * 100}%"></div></div><span class="m">${m}分</span>`;
+        li.firstChild.textContent = s; sl.firstChild.appendChild(li);
+      });
+    }
+  }
+
+  // ---------- タイマー ----------
+  let run = db.run, loopT = null;
+  const CIRC = 691.15;
+  const leftMs = () => run.pausedLeft != null ? run.pausedLeft : run.endAt - Date.now();
+  const totalMs = () => (run.phase === 'focus' ? run.min : run.breakMin) * 60000;
+  const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
+  function persist() { db.run = run; save(); }
+
+  async function startSession() {
+    previewing = false; $('previewBtn').textContent = '試聴する';
+    run = { phase: 'focus', subject: db.last.subject, min: db.last.min, breakMin: breakFor(db.last.min), endAt: Date.now() + db.last.min * 60000, pausedLeft: null, preset: db.last.preset };
+    persist();
+    await audioOn();
+    A.muted = db.last.preset === 'silent';
+    applyMix(currentVol(), 1, 2.5); // ふわっと立ち上げる
+    scheduleChime(leftMs());
+    if ('Notification' in window && Notification.permission === 'default') { try { Notification.requestPermission(); } catch (_) {} }
+    showFocus(); announce(`${run.subject}、${run.min}分の集中を開始しました`);
+  }
+  function showFocus() {
+    $('focus').hidden = false; $('home').setAttribute('aria-hidden', 'true');
+    clearInterval(loopT); loopT = setInterval(tick, 250); tick();
+  }
+  function hideFocus() {
+    $('focus').hidden = true; $('home').removeAttribute('aria-hidden');
+    clearInterval(loopT); document.title = 'しずかな机'; renderHome();
+  }
+  function drawFocus() {
+    const f = $('focus'), rest = run.phase !== 'focus';
+    f.classList.toggle('rest', rest);
+    $('phaseLabel').textContent = run.phase === 'focus' ? '集中' : run.phase === 'break' ? '休憩' : 'おつかれさま';
+    $('focusSubj').textContent = run.phase === 'done' ? `${run.subject}・${run.min}分 完了` : run.subject;
+    const paused = run.pausedLeft != null;
+    $('pausedLabel').hidden = !paused;
+    $('pauseBtn').textContent = paused ? '再開' : '一時停止';
+    $('runControls').hidden = run.phase === 'done';
+    $('nextControls').hidden = run.phase !== 'done';
+    $('ringBox').classList.toggle('breathe', run.phase === 'break' && !paused);
+    $('muteBtn').textContent = A.muted ? '🔇 環境音オフ' : '🔊 環境音オン';
+    $('muteBtn').setAttribute('aria-pressed', A.muted);
+    const tip = $('tip');
+    if (run.phase === 'break') { const [h, b] = TIPS[run.tip || 0]; tip.hidden = false; tip.innerHTML = `<b></b><span></span>`; tip.querySelector('b').textContent = h; tip.querySelector('span').textContent = b; }
+    else if (run.phase === 'done') { tip.hidden = false; tip.innerHTML = `<b>今日の合計 ${sumDay(todayKey())}分</b><span>続けるなら、もう1セット。休むのも立派な勉強です。</span>`; }
+    else tip.hidden = true;
+  }
+  function tick() {
+    if (!run) return;
+    if (run.phase === 'done') { $('time').textContent = '00:00'; $('arc').style.strokeDashoffset = CIRC; document.title = '完了 - しずかな机'; drawFocus(); return; }
+    const left = leftMs();
+    if (left <= 0) return phaseEnd();
+    $('time').textContent = mmss(left);
+    $('arc').style.strokeDashoffset = CIRC * (1 - left / totalMs());
+    document.title = `${mmss(left)} ${run.phase === 'focus' ? '集中' : '休憩'} - しずかな机`;
+    drawFocus();
+  }
+  function logSession(min) {
+    if (min < 1) return;
+    db.logs.push({ id: uid(), date: todayKey(), subject: run.subject, min, at: Date.now() });
+  }
+  function notify(title, body) {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') { try { new Notification(title, { body }); } catch (_) {} }
+  }
+  function phaseEnd(silent) {
+    if (run.phase === 'focus') {
+      logSession(run.min);
+      run.phase = 'break'; run.tip = Math.floor(Math.random() * TIPS.length);
+      run.endAt = (run.endAt || Date.now()) + run.breakMin * 60000; run.pausedLeft = null;
+      if (run.endAt <= Date.now()) return phaseEnd(true); // 閉じている間に休憩も終わっていた
+      if (A.ctx) { applyMix(currentVol(), .35, 4); scheduleChime(leftMs()); }
+      if (!silent) { notify('集中おわり', `${run.min}分おつかれさま。${run.breakMin}分休憩しよう`); announce(`集中が終わりました。${run.breakMin}分休憩です。${TIPS[run.tip][0]}`); toast(`${run.subject} ${run.min}分 記録しました ✓`); }
+    } else if (run.phase === 'break') {
+      run.phase = 'done'; run.pausedLeft = null;
+      if (A.ctx) applyMix(currentVol(), .6, 3);
+      if (!silent) { notify('休憩おわり', '次のセットに進みますか？'); announce('休憩が終わりました。もう1セットか、今日は終わりにするか選べます'); }
+    }
+    persist(); renderHome(); tick();
+  }
+  $('pauseBtn').onclick = () => {
+    if (run.pausedLeft != null) {
+      run.endAt = Date.now() + run.pausedLeft; run.pausedLeft = null;
+      audioOn().then(() => { applyMix(currentVol(), run.phase === 'break' ? .35 : 1, 1); scheduleChime(leftMs()); });
+      announce('再開しました');
+    } else {
+      run.pausedLeft = leftMs(); cancelChime(); if (A.ctx) applyMix(currentVol(), .15, .8);
+      announce('一時停止しました');
+    }
+    persist(); tick();
+  };
+  $('stopBtn').onclick = () => {
+    if (run.phase === 'break') { endRun(); return; }
+    const done = Math.floor((totalMs() - leftMs()) / 60000);
+    $('stopText').textContent = done >= 1 ? `ここまで ${done}分 集中しました。` : 'まだ1分たっていないので、記録は残りません。';
+    $('stopSave').hidden = done < 1;
+    $('stopDlg').showModal();
+  };
+  $('stopSave').onclick = () => {
+    const done = Math.floor((totalMs() - leftMs()) / 60000);
+    logSession(done); toast(`${run.subject} ${done}分 記録しました ✓`); $('stopDlg').close(); endRun();
+  };
+  $('stopDiscard').onclick = () => { $('stopDlg').close(); endRun(); };
+  $('stopCancel').onclick = () => $('stopDlg').close();
+  function endRun() { cancelChime(); run = null; persist(); hideFocus(); audioIdle(); }
+  $('againBtn').onclick = () => { endRun(); db.last.subject = db.last.subject; startSession(); };
+  $('doneBtn').onclick = () => { endRun(); toast(`今日は ${sumDay(todayKey())}分 集中しました。おつかれさま`); };
+  $('muteBtn').onclick = async () => {
+    A.muted = !A.muted;
+    if (!A.muted) await audioOn();
+    applyMix(currentVol(), run && run.phase === 'break' ? .35 : run && run.phase === 'done' ? .6 : 1, .6);
+    if (A.muted) stopSched(); else startSched();
+    if (run && run.pausedLeft == null && run.phase !== 'done') scheduleChime(leftMs());
+    drawFocus();
+  };
+  $('startBtn').onclick = startSession;
+
+  // ---------- テーマ ----------
+  const applyTheme = () => {
+    const t = db.theme || 'dark';
+    document.documentElement.dataset.theme = t;
+    document.querySelector('meta[name=theme-color]').content = t === 'light' ? '#f4f2ec' : '#11151c';
+  };
+  $('themeBtn').onclick = () => { db.theme = (db.theme || 'dark') === 'dark' ? 'light' : 'dark'; applyTheme(); save(); };
+
+  // ---------- 起動・復元 ----------
+  applyTheme(); renderSetup(); renderHome();
+  if (run) {
+    // リロード前のセッションを復元（音はブラウザの制限で、タップしてから再開）
+    if (run.pausedLeft == null && run.phase !== 'done' && leftMs() <= 0) phaseEnd(true);
+    A.muted = true; showFocus();
+    toast('前回のセッションを復元しました。🔇 をタップで音を再開');
+  }
+  let shownDay = todayKey();
+  setInterval(() => { if (todayKey() !== shownDay) { shownDay = todayKey(); renderHome(); } }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderHome(); if (run) tick(); } });
+})();
+</script>
+</body>
+</html>
