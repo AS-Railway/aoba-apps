@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f3ee">
+<title>まなびタイマー</title>
+<style>
+  :root {
+    --bg: #f5f3ee; --surface: #ffffff; --surface-2: #eeebe4; --text: #1f2328; --muted: #5f646c; --line: #dfdbd2;
+    --focus: #2e5fb3; --focus-soft: #e1e9f7; --rest: #2b7a52; --rest-soft: #dcefe4; --on: #ffffff; --warn: #b4472c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+      --focus: #8db4ff; --focus-soft: #213049; --rest: #8fd3ad; --rest-soft: #1f382c; --on: #0d1522; --warn: #f0a48c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --focus: #8db4ff; --focus-soft: #213049; --rest: #8fd3ad; --rest-soft: #1f382c; --on: #0d1522; --warn: #f0a48c;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  .app { max-width: 1180px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; }
+  .today-pill { font-size: 14px; color: var(--muted); }
+  .today-pill b { color: var(--text); font-size: 17px; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 18px; flex: none; }
+
+  .grid { display: flex; flex-direction: column; gap: 14px; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; }
+
+  /* モード切り替え */
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 14px; padding: 4px; gap: 4px; }
+  .seg button { min-height: 52px; border: 0; border-radius: 11px; background: transparent; font-weight: 700; font-size: 16px; color: var(--muted); }
+  .seg button small { display: block; font-size: 11px; font-weight: 400; }
+  .seg button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+  /* 数字の設定 */
+  .setter { display: grid; gap: 12px; margin-top: 16px; }
+  .setter.two { grid-template-columns: 1fr 1fr; }
+  .setter.three { grid-template-columns: 1fr 1fr 1fr; }
+  .unit { background: var(--surface-2); border-radius: 18px; padding: 10px 8px 10px; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .unit .label { font-size: 13px; color: var(--muted); }
+  .unit .value { font-size: clamp(56px, 11vh, 104px); font-weight: 300; line-height: 1.05; }
+  .setter.three .value { font-size: clamp(44px, 8.5vh, 80px); }
+  .unit .value small { font-size: .3em; font-weight: 500; margin-left: 2px; color: var(--muted); }
+  /* スワイプで設定できる数字：上下に薄い矢印を出して触れることを示す */
+  .unit .value[data-swipe] { position: relative; touch-action: none; cursor: ns-resize; width: 100%; text-align: center; border-radius: 14px; transition: background .15s; }
+  .unit .value[data-swipe]::before, .unit .value[data-swipe]::after { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12px; line-height: 1; color: var(--muted); opacity: .55; pointer-events: none; }
+  .unit .value[data-swipe]::before { content: "▲"; top: 2px; }
+  .unit .value[data-swipe]::after { content: "▼"; bottom: 2px; }
+  .unit .value[data-swipe]:hover, .unit .value.dragging { background: var(--focus-soft); }
+  .unit .value.dragging::before, .unit .value.dragging::after { opacity: 1; color: var(--focus); }
+  .steps { display: flex; gap: 8px; width: 100%; margin-top: 6px; }
+  .steps button { flex: 1; min-height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-size: 26px; font-weight: 500; }
+  .steps button:active { background: var(--focus-soft); }
+  .steps button:disabled { opacity: .35; cursor: not-allowed; }
+  .hint { font-size: 12px; color: var(--muted); text-align: center; margin: 8px 0 0; }
+
+  .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .chips.four { grid-template-columns: repeat(2, 1fr); margin-top: 16px; }
+  .chip { min-height: 48px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-size: 15px; padding: 4px 6px; }
+  .chip small { display: block; font-size: 11px; color: var(--muted); }
+  .chip[aria-pressed="true"] { border-color: var(--focus); background: var(--focus-soft); font-weight: 700; }
+
+  /* 右側 */
+  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .summary div { background: var(--surface-2); border-radius: 14px; padding: 10px 12px; }
+  .summary span { font-size: 12px; color: var(--muted); display: block; }
+  .summary b { font-size: 20px; }
+  .summary .wide { grid-column: 1 / -1; }
+  .start { width: 100%; min-height: 76px; border: 0; border-radius: 20px; background: var(--focus); color: var(--on); font-size: 22px; font-weight: 800; letter-spacing: .1em; }
+  .start:disabled { opacity: .4; }
+
+  .chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 120px; align-items: end; }
+  .chart .c { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; }
+  .chart .v { font-size: 11px; color: var(--muted); }
+  .chart .b { width: 100%; max-width: 32px; border-radius: 6px 6px 3px 3px; background: var(--focus); }
+  .chart .b.z { background: var(--line); height: 3px !important; }
+  .chart .d { font-size: 12px; color: var(--muted); }
+  .chart .t .d { color: var(--text); font-weight: 700; }
+
+  /* 実行画面 */
+  .run { position: fixed; inset: 0; z-index: 5; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(10px, 2.5vh, 22px); padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); text-align: center; }
+  .run .badge { display: inline-block; font-weight: 800; font-size: 18px; padding: 6px 18px; border-radius: 99px; background: var(--focus-soft); color: var(--focus); }
+  .run.rest .badge { background: var(--rest-soft); color: var(--rest); }
+  .run .big { font-size: clamp(72px, min(22vw, 26vh), 220px); font-weight: 200; line-height: 1; letter-spacing: .01em; }
+  .run .big.done-text { font-size: clamp(44px, min(10vw, 14vh), 120px); font-weight: 300; }
+  .run .meta { color: var(--muted); font-size: 15px; display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .run .meta b { color: var(--text); }
+  .track { display: flex; gap: 4px; width: min(100%, 720px); height: 10px; }
+  .track i { flex: var(--w); border-radius: 99px; background: var(--surface-2); overflow: hidden; position: relative; }
+  .track i::after { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: var(--focus); }
+  .track i.r::after { background: var(--rest); }
+  .ctrl { display: flex; gap: 10px; width: min(100%, 560px); flex-wrap: wrap; }
+  .ctrl button { flex: 1; min-width: 140px; min-height: 64px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); font-size: 18px; font-weight: 700; }
+  .ctrl .primary { background: var(--focus); border-color: var(--focus); color: var(--on); }
+  .run.rest .ctrl .primary { background: var(--rest); border-color: var(--rest); }
+  .ctrl .danger { color: var(--warn); }
+  .note { font-size: 12px; color: var(--muted); }
+  .confirm { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; width: min(100%, 560px); }
+  .confirm p { margin: 0 0 12px; font-size: 16px; }
+  .paused-tag { color: var(--warn); font-weight: 700; font-size: 15px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; visibility: hidden; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 14px; max-width: calc(100% - 32px); width: max-content; transition: all .25s; z-index: 20; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+
+  /* 縦長画面：スタートを常に親指の届く画面下に固定 */
+  @media not ((min-width: 900px) and (orientation: landscape)) {
+    .app { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+    .start { position: fixed; left: 16px; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom)); width: auto; max-width: 1148px; margin: 0 auto; z-index: 3; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+    .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
+  }
+  /* iPad 横向き・横長画面：2カラムで1画面に収める */
+  @media (min-width: 900px) and (orientation: landscape) {
+    .app { height: 100vh; height: 100dvh; padding: 18px 24px; }
+    .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+    .col { min-height: 0; }
+    .col.right .card.log { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .col.right .chart { flex: 1; height: auto; min-height: 90px; max-height: 200px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app" id="home">
+  <header>
+    <h1>まなびタイマー</h1>
+    <span class="today-pill">今日 <b class="num" id="todayMin">0</b> 分</span>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="ライト・ダークを切り替え">◐</button>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card" aria-label="タイマーの設定">
+        <div class="seg" role="radiogroup" aria-label="モード">
+          <button type="button" role="radio" data-mode="simple">休憩なし<small>決めた時間を通しで</small></button>
+          <button type="button" role="radio" data-mode="interval">休憩あり<small>集中と休憩をくり返す</small></button>
+        </div>
+
+        <div id="simpleBox">
+          <div class="setter two">
+            <div class="unit">
+              <span class="label" id="lh">時間</span>
+              <div class="value num" data-swipe="h" aria-labelledby="lh"><span id="vh">0</span><small>時間</small></div>
+              <div class="steps"><button type="button" data-step="h" data-d="-1" aria-label="1時間減らす">−</button><button type="button" data-step="h" data-d="1" aria-label="1時間増やす">＋</button></div>
+            </div>
+            <div class="unit">
+              <span class="label" id="lm">分</span>
+              <div class="value num" data-swipe="m" aria-labelledby="lm"><span id="vm">30</span><small>分</small></div>
+              <div class="steps"><button type="button" data-step="m" data-d="-1" aria-label="1分減らす">−</button><button type="button" data-step="m" data-d="1" aria-label="1分増やす">＋</button></div>
+            </div>
+          </div>
+          <p class="hint">1分単位で設定できます。数字を上下にスワイプすると速く動かせます</p>
+          <div class="chips" id="simplePresets"></div>
+        </div>
+
+        <div id="intervalBox" hidden>
+          <div class="chips four" id="intervalPresets"></div>
+          <div class="setter three">
+            <div class="unit">
+              <span class="label">集中</span>
+              <div class="value num" data-swipe="f" aria-label="集中"><span id="vf">25</span><small>分</small></div>
+              <div class="steps"><button type="button" data-step="f" data-d="-1" aria-label="集中を1分減らす">−</button><button type="button" data-step="f" data-d="1" aria-label="集中を1分増やす">＋</button></div>
+            </div>
+            <div class="unit">
+              <span class="label">休憩</span>
+              <div class="value num" data-swipe="b" aria-label="休憩"><span id="vb">5</span><small>分</small></div>
+              <div class="steps"><button type="button" data-step="b" data-d="-1" aria-label="休憩を1分減らす">−</button><button type="button" data-step="b" data-d="1" aria-label="休憩を1分増やす">＋</button></div>
+            </div>
+            <div class="unit">
+              <span class="label">回数</span>
+              <div class="value num" data-swipe="s" aria-label="回数"><span id="vs">4</span><small>回</small></div>
+              <div class="steps"><button type="button" data-step="s" data-d="-1" aria-label="回数を減らす">−</button><button type="button" data-step="s" data-d="1" aria-label="回数を増やす">＋</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col right">
+      <section class="card" aria-label="この設定の内容">
+        <div class="summary">
+          <div><span>勉強する時間</span><b class="num" id="sumFocus">30分</b></div>
+          <div><span>おわる時刻</span><b class="num" id="sumEnd">--:--</b></div>
+          <div class="wide"><span>流れ</span><b id="sumFlow" style="font-size:15px;font-weight:500"></b></div>
+        </div>
+      </section>
+      <button class="start" id="startBtn" type="button">スタート</button>
+      <section class="card log" aria-labelledby="h-log">
+        <h2 id="h-log">直近7日の勉強時間（分）</h2>
+        <div class="chart" id="chart" role="img"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="run" id="run" hidden role="region" aria-label="タイマー実行中">
+  <span class="badge" id="badge">集中</span>
+  <div class="big num" id="big" role="timer" aria-live="off">25:00</div>
+  <div class="paused-tag" id="pausedTag" hidden>一時停止中</div>
+  <div class="track" id="track" aria-hidden="true"></div>
+  <div class="meta"><span id="nextInfo"></span><span>おわり <b class="num" id="endInfo">--:--</b></span></div>
+  <div class="ctrl" id="ctrl">
+    <button type="button" class="primary" id="pauseBtn">一時停止</button>
+    <button type="button" id="skipBtn" hidden>休憩をとばす</button>
+    <button type="button" class="danger" id="stopBtn">終了</button>
+  </div>
+  <div class="confirm" id="confirm" hidden>
+    <p id="confirmText"></p>
+    <div class="ctrl">
+      <button type="button" class="primary" id="cSave">記録して終了</button>
+      <button type="button" id="cDiscard">記録せず終了</button>
+      <button type="button" id="cBack">続ける</button>
+    </div>
+  </div>
+  <div class="ctrl" id="doneCtrl" hidden>
+    <button type="button" class="primary" id="againBtn">同じ設定でもう一度</button>
+    <button type="button" id="homeBtn">もどる</button>
+  </div>
+  <p class="note" id="wakeNote" hidden>この端末では画面の自動スリープを止められません。設定で自動ロックを長めにしてください。</p>
+  <div class="sr" id="announce" aria-live="assertive"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const KEY = 'studytimer-v2';
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const shiftKey = (k, n) => { const [y, m, d] = k.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
+  const keyDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const clock = t => { const d = new Date(t); return `${d.getHours()}:${pad(d.getMinutes())}`; };
+  const hm = min => min >= 60 ? `${Math.floor(min / 60)}時間${min % 60 ? (min % 60) + '分' : ''}` : `${min}分`;
+
+  // ---------- データ ----------
+  const fresh = () => ({ cfg: { mode: 'simple', total: 30, f: 25, b: 5, s: 4 }, logs: {}, run: null, theme: null });
+  let db;
+  try {
+    const raw = localStorage.getItem(KEY);
+    db = raw ? Object.assign(fresh(), JSON.parse(raw)) : fresh();
+  } catch (e) {
+    try { localStorage.setItem(KEY + '-broken-' + Date.now(), localStorage.getItem(KEY)); } catch (_) {}
+    db = fresh();
+  }
+  let warned = false;
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); warned = false; }
+    catch (e) { if (!warned) { toast('保存できませんでした（プライベートモードの可能性）'); warned = true; } }
+  }
+  let toastT;
+  function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+  const announce = m => { $('announce').textContent = ''; setTimeout(() => $('announce').textContent = m, 50); };
+
+  // ---------- 設定 ----------
+  const LIM = { total: [1, 599], f: [1, 120], b: [1, 30], s: [1, 10] };
+  const SIMPLE_PRESETS = [15, 30, 45, 60, 90, 120];
+  const INTERVAL_PRESETS = [[25, 5, 4, '定番'], [50, 10, 3, '長め'], [45, 15, 2, 'しっかり休む'], [90, 15, 2, '大学の授業']];
+  const clampV = (k, v) => Math.min(LIM[k][1], Math.max(LIM[k][0], v));
+  function stepCfg(key, d) {
+    const c = db.cfg;
+    if (key === 'h') { const t = c.total + d * 60; if (t < LIM.total[0] || t > LIM.total[1]) return; c.total = t; } // 範囲外なら分を崩さず止める
+    else if (key === 'm') c.total = clampV('total', c.total + d); // 59分→1時間00分のように繰り上がる
+    else c[key] = clampV(key, c[key] + d); // 集中・休憩・回数も1ずつ
+    renderCfg();
+  }
+  function plan() {
+    const c = db.cfg;
+    if (c.mode === 'simple') return [{ focus: true, min: c.total }];
+    const p = [];
+    for (let i = 0; i < c.s; i++) { p.push({ focus: true, min: c.f }); if (i < c.s - 1) p.push({ focus: false, min: c.b }); }
+    return p;
+  }
+  function renderCfg() {
+    const c = db.cfg;
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-checked', b.dataset.mode === c.mode));
+    $('simpleBox').hidden = c.mode !== 'simple'; $('intervalBox').hidden = c.mode !== 'interval';
+    $('vh').textContent = Math.floor(c.total / 60); $('vm').textContent = pad(c.total % 60);
+    $('vf').textContent = c.f; $('vb').textContent = c.b; $('vs').textContent = c.s;
+    document.querySelectorAll('[data-swipe]').forEach(el => {
+      const k = el.dataset.swipe, v = swipeVal[k]();
+      el.setAttribute('aria-valuenow', v); el.setAttribute('aria-valuetext', swipeText[k](v));
+    });
+    const dis = { h: [c.total - 60 < LIM.total[0], c.total + 60 > LIM.total[1]], m: [c.total <= LIM.total[0], c.total >= LIM.total[1]],
+      f: [c.f <= LIM.f[0], c.f >= LIM.f[1]], b: [c.b <= LIM.b[0], c.b >= LIM.b[1]], s: [c.s <= LIM.s[0], c.s >= LIM.s[1]] };
+    document.querySelectorAll('[data-step]').forEach(b => { b.disabled = dis[b.dataset.step][+b.dataset.d > 0 ? 1 : 0]; });
+    $('simplePresets').querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === c.total));
+    $('intervalPresets').querySelectorAll('.chip').forEach(b => { const [f, br, s] = b.dataset.v.split(',').map(Number); b.setAttribute('aria-pressed', f === c.f && br === c.b && s === c.s); });
+    const p = plan(), focus = p.filter(x => x.focus).reduce((a, x) => a + x.min, 0), all = p.reduce((a, x) => a + x.min, 0);
+    $('sumFocus').textContent = hm(focus);
+    $('sumEnd').textContent = clock(Date.now() + all * 60000);
+    $('sumFlow').textContent = c.mode === 'simple' ? `${hm(c.total)} 通しで集中` : `集中${c.f}分 → 休憩${c.b}分 を${c.s}回（全体 ${hm(all)}）`;
+    save();
+  }
+  // プリセット
+  SIMPLE_PRESETS.forEach(v => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.v = v; b.textContent = hm(v);
+    b.onclick = () => { db.cfg.total = v; renderCfg(); }; $('simplePresets').appendChild(b);
+  });
+  INTERVAL_PRESETS.forEach(([f, br, s, name]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.v = `${f},${br},${s}`;
+    b.innerHTML = `${f}分＋休${br}分 ×${s}<small>${name}</small>`;
+    b.onclick = () => { Object.assign(db.cfg, { f, b: br, s }); renderCfg(); }; $('intervalPresets').appendChild(b);
+  });
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { db.cfg.mode = b.dataset.mode; renderCfg(); });
+  // ＋／−：タップで1回、長押しで連続
+  document.querySelectorAll('[data-step]').forEach(b => {
+    let hold, rep;
+    const stop = () => { clearTimeout(hold); clearTimeout(rep); };
+    b.addEventListener('pointerdown', e => {
+      if (b.disabled) return;
+      e.preventDefault(); stepCfg(b.dataset.step, +b.dataset.d);
+      // 長押し：はじめはゆっくり、押し続けるほど速く
+      let count = 0;
+      const repeat = () => {
+        if (b.disabled) return stop();
+        stepCfg(b.dataset.step, +b.dataset.d); count++;
+        rep = setTimeout(repeat, count < 6 ? 140 : count < 20 ? 70 : 35);
+      };
+      hold = setTimeout(repeat, 400);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
+    b.addEventListener('click', e => { if (e.detail === 0) stepCfg(b.dataset.step, +b.dataset.d); }); // キーボード操作
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  });
+  // 数字を上下にスワイプ（またはホイール・矢印キー）で増減
+  // 1段あたりの移動量。1分刻みの数字は細かめにして、短いスワイプで大きく動かせるように
+  const SWIPE_PX = { h: 28, m: 10, f: 10, b: 14, s: 28 };
+  const swipeVal = { h: () => Math.floor(db.cfg.total / 60), m: () => db.cfg.total % 60, f: () => db.cfg.f, b: () => db.cfg.b, s: () => db.cfg.s };
+  const swipeText = { h: v => `${v}時間`, m: v => `${v}分`, f: v => `集中${v}分`, b: v => `休憩${v}分`, s: v => `${v}回` };
+  document.querySelectorAll('[data-swipe]').forEach(el => {
+    const key = el.dataset.swipe;
+    el.tabIndex = 0; el.setAttribute('role', 'spinbutton');
+    const step = d => { const before = JSON.stringify(db.cfg); stepCfg(key, d); if (JSON.stringify(db.cfg) !== before && navigator.vibrate) navigator.vibrate(4); };
+    let y0 = null;
+    el.addEventListener('pointerdown', e => { y0 = e.clientY; el.classList.add('dragging'); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointermove', e => {
+      if (y0 == null) return;
+      const n = Math.trunc((y0 - e.clientY) / SWIPE_PX[key]); // 上へ動かすと増える
+      if (!n) return;
+      for (let i = 0; i < Math.abs(n); i++) step(Math.sign(n));
+      y0 -= n * SWIPE_PX[key];
+    });
+    const end = () => { y0 = null; el.classList.remove('dragging'); };
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, end));
+    let wheelAcc = 0;
+    el.addEventListener('wheel', e => {
+      e.preventDefault(); wheelAcc += e.deltaY;
+      while (Math.abs(wheelAcc) >= 40) { step(wheelAcc < 0 ? 1 : -1); wheelAcc -= Math.sign(wheelAcc) * 40; }
+    }, { passive: false });
+    el.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    });
+  });
+
+  // ---------- 記録 ----------
+  const today = () => fmt(new Date());
+  function addLog(min, at = Date.now()) {
+    if (min < 1) return;
+    const k = fmt(new Date(at)); db.logs[k] = (db.logs[k] || 0) + min; save();
+  }
+  function renderLog() {
+    const k = today();
+    $('todayMin').textContent = db.logs[k] || 0;
+    const vals = []; for (let i = 6; i >= 0; i--) { const kk = shiftKey(k, -i); vals.push([kk, db.logs[kk] || 0]); }
+    const max = Math.max(60, ...vals.map(v => v[1]));
+    const ch = $('chart'); ch.innerHTML = ''; const desc = [];
+    vals.forEach(([kk, v], i) => {
+      const wd = i === 6 ? '今日' : keyDate(kk).toLocaleDateString('ja-JP', { weekday: 'short' });
+      const c = document.createElement('div'); c.className = 'c' + (i === 6 ? ' t' : '');
+      c.innerHTML = `<span class="v num">${v || ''}</span><div class="b ${v ? '' : 'z'}" style="height:${v / max * 80}%"></div><span class="d">${wd}</span>`;
+      ch.appendChild(c); desc.push(`${wd} ${v}分`);
+    });
+    ch.setAttribute('aria-label', '直近7日の勉強時間。' + desc.join('、'));
+  }
+
+  // ---------- 音（スタート時に1つだけ作って使い回す） ----------
+  let ctx = null, chimes = [];
+  function audioReady() {
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state !== 'running') ctx.resume();
+    } catch (e) { ctx = null; }
+  }
+  const TONES = { toRest: [784, 523], toFocus: [523, 784], done: [523, 659, 784, 1046] };
+  function chimeAt(sec, kind) {
+    if (!ctx) return;
+    TONES[kind].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + sec + i * .28;
+      o.frequency.value = f; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.32, t + .01); g.gain.exponentialRampToValueAtTime(.0008, t + 1.6);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 1.7); chimes.push([o, t]);
+    });
+  }
+  function cancelChimes() { const now = ctx ? ctx.currentTime : 0; chimes.forEach(([o, t]) => { if (t > now) try { o.stop(); } catch (_) {} }); chimes = []; }
+  // 残りすべての区切りのチャイムを、開始時点でまとめて予約（裏にしてもずれない）
+  function scheduleAll() {
+    cancelChimes(); if (!ctx || !run || run.pausedLeft != null) return;
+    let t = (run.phaseEnd - Date.now()) / 1000;
+    for (let i = run.idx; i < run.phases.length; i++) {
+      if (i > run.idx) t += run.phases[i].min * 60;
+      const last = i === run.phases.length - 1;
+      chimeAt(Math.max(0, t), last ? 'done' : run.phases[i].focus ? 'toRest' : 'toFocus');
+    }
+  }
+
+  // ---------- 画面スリープ防止 ----------
+  let wake = null;
+  async function keepAwake() {
+    if (!('wakeLock' in navigator)) { $('wakeNote').hidden = false; return; }
+    try { wake = await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+  function releaseAwake() { try { wake && wake.release(); } catch (_) {} wake = null; }
+
+  // ---------- 実行 ----------
+  let run = db.run, loop = null, confirmLeft = null;
+  const leftMs = () => run.pausedLeft != null ? run.pausedLeft : run.phaseEnd - Date.now();
+  const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`; };
+  const persist = () => { db.run = run; save(); };
+
+  function start() {
+    audioReady();
+    run = { phases: plan(), idx: 0, phaseEnd: 0, pausedLeft: null, done: false };
+    run.phaseEnd = Date.now() + run.phases[0].min * 60000;
+    persist(); openRun(); scheduleAll(); keepAwake();
+    announce(`${hm(run.phases[0].min)}の集中をはじめました`);
+  }
+  function openRun() {
+    $('home').hidden = true; $('run').hidden = false; $('confirm').hidden = true;
+    clearInterval(loop); loop = setInterval(tick, 250); tick();
+  }
+  function closeRun() {
+    clearInterval(loop); cancelChimes(); releaseAwake();
+    run = null; persist();
+    $('run').hidden = true; $('home').hidden = false; document.title = 'まなびタイマー';
+    renderLog(); renderCfg();
+  }
+  // 時間が来た区切りを順に進める（閉じていた間の分もまとめて処理）
+  function advance() {
+    let moved = false;
+    while (!run.done && run.pausedLeft == null && run.phaseEnd <= Date.now()) {
+      const p = run.phases[run.idx];
+      if (p.focus) addLog(p.min, run.phaseEnd - 1000);
+      moved = true;
+      if (run.idx === run.phases.length - 1) { run.done = true; break; }
+      run.idx++; run.phaseEnd += run.phases[run.idx].min * 60000;
+    }
+    if (moved) {
+      persist(); renderLog();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      const p = run.phases[run.idx];
+      announce(run.done ? 'すべて終わりました。おつかれさまでした' : p.focus ? '休憩おわり。集中にもどります' : `集中おわり。${p.min}分休憩しましょう`);
+    }
+  }
+  function tick() {
+    if (!run) return;
+    if (confirmLeft == null) advance();
+    const p = run.phases[run.idx], rest = !run.done && !p.focus;
+    $('run').classList.toggle('rest', rest);
+    $('big').classList.toggle('done-text', run.done);
+    const focusCount = run.phases.filter(x => x.focus).length, nth = run.phases.slice(0, run.idx + 1).filter(x => x.focus).length;
+    if (run.done) {
+      const total = run.phases.filter(x => x.focus).reduce((a, x) => a + x.min, 0);
+      $('badge').textContent = 'おつかれさま'; $('big').textContent = hm(total);
+      $('nextInfo').innerHTML = `今日の合計 <b class="num">${db.logs[today()] || 0}分</b>`;
+      $('endInfo').parentElement.hidden = true;
+      $('ctrl').hidden = true; $('doneCtrl').hidden = false; $('pausedTag').hidden = true;
+      document.title = '完了 - まなびタイマー';
+    } else {
+      const left = confirmLeft != null ? confirmLeft : leftMs();
+      $('badge').textContent = p.focus ? (focusCount > 1 ? `集中 ${nth} / ${focusCount}` : '集中') : '休憩';
+      $('big').textContent = mmss(left);
+      const nx = run.phases[run.idx + 1];
+      $('nextInfo').innerHTML = nx ? `次は <b>${nx.focus ? '集中' : '休憩'} ${nx.min}分</b>` : '<b>これで最後</b>';
+      const remain = left + run.phases.slice(run.idx + 1).reduce((a, x) => a + x.min * 60000, 0);
+      $('endInfo').parentElement.hidden = false; $('endInfo').textContent = clock(Date.now() + remain);
+      $('ctrl').hidden = confirmLeft != null; $('doneCtrl').hidden = true;
+      const paused = run.pausedLeft != null;
+      $('pausedTag').hidden = !paused; $('pauseBtn').textContent = paused ? '再開' : '一時停止';
+      $('skipBtn').hidden = p.focus;
+      document.title = `${mmss(left)} ${p.focus ? '集中' : '休憩'} - まなびタイマー`;
+    }
+    // 全体の進み具合
+    const tr = $('track');
+    if (tr.children.length !== run.phases.length) tr.innerHTML = run.phases.map(x => `<i class="${x.focus ? '' : 'r'}" style="--w:${x.min}"></i>`).join('');
+    [...tr.children].forEach((el, i) => {
+      const pr = run.done || i < run.idx ? 100 : i > run.idx ? 0 : 100 * (1 - (confirmLeft != null ? confirmLeft : leftMs()) / (run.phases[i].min * 60000));
+      el.style.setProperty('--p', pr + '%');
+    });
+  }
+  $('startBtn').onclick = start;
+  $('pauseBtn').onclick = () => {
+    audioReady();
+    if (run.pausedLeft != null) { run.phaseEnd = Date.now() + run.pausedLeft; run.pausedLeft = null; announce('再開しました'); }
+    else { run.pausedLeft = leftMs(); announce('一時停止しました'); }
+    persist(); scheduleAll(); tick();
+  };
+  $('skipBtn').onclick = () => {
+    if (run.pausedLeft != null) run.pausedLeft = null;
+    run.phaseEnd = Date.now(); advance(); scheduleAll(); tick();
+  };
+  $('stopBtn').onclick = () => {
+    confirmLeft = leftMs(); // 確認している間の時間は記録に含めない
+    const p = run.phases[run.idx];
+    const done = p.focus ? Math.floor((p.min * 60000 - confirmLeft) / 60000) : 0;
+    $('confirmText').textContent = done >= 1 ? `いまの集中は ${done}分 進んでいます。記録しますか？` : p.focus ? 'まだ1分たっていないので、記録は残りません。終了しますか？' : '休憩中です。終了しますか？';
+    $('cSave').hidden = done < 1; $('cSave').dataset.min = done;
+    cancelChimes(); $('confirm').hidden = false; tick();
+  };
+  // 確認中はタイマーを止めておき、「続ける」で確認前の残り時間から再開
+  $('cBack').onclick = () => {
+    if (run.pausedLeft == null) run.phaseEnd = Date.now() + confirmLeft;
+    confirmLeft = null; $('confirm').hidden = true; persist(); scheduleAll(); tick();
+  };
+  $('cSave').onclick = () => { addLog(+$('cSave').dataset.min); toast(`${$('cSave').dataset.min}分 記録しました`); confirmLeft = null; closeRun(); };
+  $('cDiscard').onclick = () => { confirmLeft = null; closeRun(); };
+  $('againBtn').onclick = () => { closeRun(); start(); };
+  $('homeBtn').onclick = closeRun;
+
+  // ---------- テーマ ----------
+  const applyTheme = () => { if (db.theme) document.documentElement.dataset.theme = db.theme; else delete document.documentElement.dataset.theme; };
+  $('themeBtn').onclick = () => {
+    const dark = db.theme ? db.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    db.theme = dark ? 'light' : 'dark'; applyTheme(); save();
+  };
+
+  // ---------- 起動 ----------
+  applyTheme(); renderCfg(); renderLog();
+  if (run) { openRun(); toast('前回のタイマーの続きから再開しました'); }
+  let shownDay = today();
+  setInterval(() => { if (!run) renderCfg(); if (today() !== shownDay) { shownDay = today(); renderLog(); } }, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    renderLog(); if (run) { tick(); if (!run.done) { keepAwake(); if (ctx) scheduleAll(); } }
+  });
+})();
+</script>
+</body>
+</html>
