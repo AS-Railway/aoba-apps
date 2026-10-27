@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>100マス計算</title>
+<style>
+  :root {
+    --bg: #f5f3ee; --surface: #fff; --surface-2: #eeebe4; --text: #1f2328; --muted: #5f646c; --line: #dfdbd2;
+    --accent: #2e5fb3; --accent-soft: #e1e9f7; --on: #fff; --good: #1f6b45; --good-soft: #dcefe4; --bad: #a8402a; --bad-soft: #f8e3dc; --cur: #fff3c4;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; --cur: #4a4220; } }
+  :root[data-theme="dark"] {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; --cur: #4a4220; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .screen { max-width: 1180px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; }
+  .seg { display: grid; gap: 4px; background: var(--surface-2); border-radius: 14px; padding: 4px; margin-bottom: 12px; }
+  .seg.three { grid-template-columns: repeat(3, 1fr); } .seg.two { grid-template-columns: 1fr 1fr; }
+  .seg button { min-height: 56px; border: 0; border-radius: 11px; background: transparent; font-weight: 700; color: var(--muted); font-size: 17px; }
+  .seg button small { display: block; font-size: 11px; font-weight: 400; }
+  .seg button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .start { width: 100%; min-height: 76px; border: 0; border-radius: 20px; background: var(--accent); color: var(--on); font-size: 22px; font-weight: 800; letter-spacing: .1em; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stats div { background: var(--surface-2); border-radius: 14px; padding: 10px 12px; }
+  .stats span { display: block; font-size: 12px; color: var(--muted); }
+  .stats b { font-size: 22px; }
+  .chart { display: flex; gap: 6px; align-items: flex-end; height: 120px; margin-top: 8px; }
+  .chart .c { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; min-width: 0; }
+  .chart .b { width: 100%; max-width: 30px; background: var(--accent); border-radius: 6px 6px 3px 3px; }
+  .chart .b.ng { background: var(--line); }
+  .chart .b.best { background: var(--good); }
+  .chart span { font-size: 11px; color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  .empty { color: var(--muted); font-size: 14px; padding: 16px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; }
+
+  /* 計算画面 */
+  .play { max-width: 1180px; margin: 0 auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .playbar { display: flex; align-items: center; gap: 10px; }
+  .playbar .t { font-size: 26px; font-weight: 700; flex: 1; }
+  .playbar .p { color: var(--muted); }
+  .quit { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+  .quit.armed { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); font-weight: 700; }
+  .board { display: grid; gap: 2px; width: 100%; margin: 0 auto; user-select: none; }
+  .board div { aspect-ratio: 1; display: grid; place-items: center; border-radius: 4px; font-size: clamp(11px, 2.2vmin, 20px); }
+  .board .h { background: var(--surface-2); font-weight: 800; }
+  .board .op { background: var(--accent); color: var(--on); font-weight: 800; }
+  .board .cell { background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+  .board .cell.cur { background: var(--cur); border: 2px solid var(--accent); font-weight: 700; }
+  .board .cell.rowcol { background: var(--accent-soft); }
+  .board .cell.ng { background: var(--bad-soft); color: var(--bad); font-weight: 700; }
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  .q { text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 8px; }
+  .q .expr { font-size: clamp(28px, 6vh, 44px); font-weight: 600; }
+  .q .ans { display: inline-block; min-width: 2.4em; border-bottom: 3px solid var(--accent); color: var(--accent); }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .keys button { min-height: clamp(52px, 9vh, 80px); border-radius: 16px; border: 1px solid var(--line); background: var(--surface); font-size: 28px; font-weight: 600; }
+  .keys button:active { background: var(--accent-soft); transform: scale(.97); }
+  .keys .ok { background: var(--accent); color: var(--on); border-color: var(--accent); font-size: 20px; }
+  .keys .bs { font-size: 22px; }
+
+  /* 結果 */
+  .result { text-align: center; }
+  .result .time { font-size: clamp(56px, 12vh, 104px); font-weight: 300; line-height: 1; }
+  .badge { display: inline-block; background: var(--good-soft); color: var(--good); font-weight: 800; padding: 4px 14px; border-radius: 99px; margin: 8px 0; }
+  .miss { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-height: 140px; overflow: auto; }
+  .miss li { background: var(--bad-soft); color: var(--bad); padding: 4px 10px; border-radius: 10px; font-size: 14px; }
+  .row2 { display: flex; gap: 10px; margin-top: 14px; }
+  .row2 button { flex: 1; min-height: 60px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 17px; }
+  .row2 .primary { background: var(--accent); color: var(--on); border-color: var(--accent); }
+
+  @media (min-width: 900px) and (orientation: landscape) {
+    .screen { height: 100vh; height: 100dvh; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; gap: 18px; padding: 18px 24px; }
+    .screen header { grid-column: 1 / -1; }
+    .screen .colL, .screen .colR { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+    .play { height: 100vh; height: 100dvh; display: grid; grid-template-columns: auto minmax(300px, 1fr); grid-template-rows: auto 1fr; gap: 12px 24px; padding: 14px 24px; }
+    .playbar { grid-column: 1 / -1; }
+    .board { width: calc(100dvh - 110px); max-width: 62vw; align-self: center; }
+    .side { justify-content: center; }
+  }
+  @media not ((min-width: 900px) and (orientation: landscape)) {
+    .screen .colL, .screen .colR { display: flex; flex-direction: column; gap: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="screen" id="setup">
+  <header><h1>100マス計算</h1><button class="icon-btn" id="themeBtn" type="button" aria-label="ライト・ダークを切り替え">◐</button></header>
+  <div class="colL">
+    <section class="card" aria-label="種目">
+      <div class="seg three" role="radiogroup" aria-label="計算の種類" id="opSeg">
+        <button type="button" role="radio" data-op="+">たし算</button><button type="button" role="radio" data-op="-">ひき算</button><button type="button" role="radio" data-op="*">かけ算</button>
+      </div>
+      <div class="seg two" role="radiogroup" aria-label="マスの数" id="sizeSeg">
+        <button type="button" role="radio" data-size="10">100マス<small>10×10</small></button><button type="button" role="radio" data-size="5">25マス<small>5×5・ウォームアップ</small></button>
+      </div>
+      <button class="start" id="startBtn" type="button">スタート</button>
+      <p class="note">答えの桁数まで入れると自動で次のマスへ進みます。キーボードの数字キーでも入力できます。</p>
+    </section>
+  </div>
+  <div class="colR">
+    <section class="card" aria-labelledby="h-rec">
+      <h2 id="h-rec">記録（<span id="kindName"></span>）</h2>
+      <div class="stats">
+        <div><span>自己ベスト</span><b class="num" id="best">-</b></div>
+        <div><span>前回</span><b class="num" id="last">-</b></div>
+        <div><span>連続</span><b class="num" id="streak">0日</b></div>
+      </div>
+      <div id="chartBox"></div>
+      <p class="note">自己ベストは全問正解したときのタイムだけで記録します。グラフは直近10回（緑＝ベスト、灰色＝ミスあり）。</p>
+    </section>
+  </div>
+</div>
+
+<div class="play" id="play" hidden>
+  <div class="playbar">
+    <span class="t num" id="time" aria-label="経過時間">0.0秒</span>
+    <span class="p num" id="progress">0 / 100</span>
+    <button class="quit" type="button" id="quitBtn">やめる</button>
+  </div>
+  <div class="board" id="board" aria-hidden="true"></div>
+  <div class="side">
+    <div class="q" aria-live="polite"><span class="expr num" id="expr"></span></div>
+    <div class="keys" id="keys"></div>
+  </div>
+</div>
+
+<div class="screen" id="result" hidden>
+  <header><h1>結果</h1></header>
+  <div class="colL">
+    <section class="card result" aria-live="polite">
+      <div id="resKind" style="color:var(--muted)"></div>
+      <div class="time num" id="resTime"></div>
+      <div id="resBadge"></div>
+      <div id="resScore" style="font-size:20px;font-weight:700"></div>
+      <div id="resDiff" style="color:var(--muted)"></div>
+      <div class="row2"><button class="primary" type="button" id="againBtn">もう一度</button><button type="button" id="backBtn">もどる</button></div>
+    </section>
+  </div>
+  <div class="colR">
+    <section class="card">
+      <h2>まちがえたマス</h2>
+      <div id="missBox"></div>
+      <div class="board" id="resBoard" aria-hidden="true" style="margin-top:12px;max-width:380px"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const KEY = 'mathdrill-v2';
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const shiftKey = (k, n) => { const [y, m, d] = k.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
+  const OPS = { '+': ['たし算', '+', (a, b) => a + b], '-': ['ひき算', '−', (a, b) => a - b], '*': ['かけ算', '×', (a, b) => a * b] };
+
+  let db;
+  try { db = Object.assign({ records: [], op: '+', size: 10, theme: null }, JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch (e) { try { localStorage.setItem(KEY + '-broken-' + Date.now(), localStorage.getItem(KEY)); } catch (_) {} db = { records: [], op: '+', size: 10, theme: null }; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
+  const kindName = (op, size) => `${OPS[op][0]}・${size * size}マス`;
+  const sec = t => t.toFixed(1) + '秒';
+
+  // ---------- 設定画面 ----------
+  function renderSetup() {
+    document.querySelectorAll('[data-op]').forEach(b => b.setAttribute('aria-checked', b.dataset.op === db.op));
+    document.querySelectorAll('[data-size]').forEach(b => b.setAttribute('aria-checked', +b.dataset.size === db.size));
+    const kind = db.op + db.size, rs = db.records.filter(r => r.kind === kind);
+    $('kindName').textContent = kindName(db.op, db.size);
+    const perfect = rs.filter(r => r.correct === r.total), best = perfect.length ? Math.min(...perfect.map(r => r.time)) : null;
+    $('best').textContent = best == null ? '-' : sec(best);
+    $('last').textContent = rs.length ? `${sec(rs[rs.length - 1].time)}` : '-';
+    // 連続日数：今日まだなら昨日から数える
+    const days = new Set(db.records.map(r => r.date)); let k = fmt(new Date()); if (!days.has(k)) k = shiftKey(k, -1);
+    let n = 0; while (days.has(k)) { n++; k = shiftKey(k, -1); }
+    $('streak').textContent = n + '日';
+    const recent = rs.slice(-10), box = $('chartBox');
+    if (!recent.length) { box.innerHTML = '<div class="empty">まだ記録がありません。まずは25マスで肩ならし！</div>'; return; }
+    const max = Math.max(...recent.map(r => r.time));
+    box.innerHTML = '<div class="chart" role="img"></div>';
+    const ch = box.firstChild;
+    ch.setAttribute('aria-label', '直近の記録。' + recent.map(r => sec(r.time)).join('、'));
+    recent.forEach(r => {
+      const c = document.createElement('div'); c.className = 'c';
+      const cls = r.correct !== r.total ? 'ng' : r.time === best ? 'best' : '';
+      c.innerHTML = `<span class="num">${Math.round(r.time)}</span><div class="b ${cls}" style="height:${r.time / max * 80}%"></div><span>${r.date.slice(5).replace('-', '/')}</span>`;
+      ch.appendChild(c);
+    });
+  }
+  document.querySelectorAll('[data-op]').forEach(b => b.onclick = () => { db.op = b.dataset.op; save(); renderSetup(); });
+  document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => { db.size = +b.dataset.size; save(); renderSetup(); });
+
+  // ---------- 計算 ----------
+  const G = { playing: false };
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  function start() {
+    const size = db.size, op = db.op;
+    G.op = op; G.size = size;
+    G.rows = shuffle(op === '-' ? range(10, 19) : range(0, 9)).slice(0, size);
+    G.cols = shuffle(range(0, 9)).slice(0, size);
+    G.ans = Array(size * size).fill(null); G.pos = 0; G.input = ''; G.playing = true;
+    G.startAt = performance.now();
+    buildBoard($('board'), size, true);
+    show('play'); $('quitBtn').classList.remove('armed'); $('quitBtn').textContent = 'やめる';
+    clearInterval(G.timer); G.timer = setInterval(() => { $('time').textContent = sec((performance.now() - G.startAt) / 1000); }, 100);
+    draw();
+  }
+  function buildBoard(el, size, clickable) {
+    el.style.gridTemplateColumns = `repeat(${size + 1}, 1fr)`;
+    let h = `<div class="op">${OPS[G.op][1]}</div>` + G.cols.map(c => `<div class="h num">${c}</div>`).join('');
+    G.rows.forEach((r, i) => { h += `<div class="h num">${r}</div>` + G.cols.map((_, j) => `<div class="cell num" data-n="${i * size + j}"></div>`).join(''); });
+    el.innerHTML = h;
+    if (clickable) el.querySelectorAll('.cell').forEach(c => c.onclick = () => { if (!G.playing) return; commit(false); G.pos = +c.dataset.n; G.input = G.ans[G.pos] == null ? '' : String(G.ans[G.pos]); draw(); });
+  }
+  const correctOf = n => OPS[G.op][2](G.rows[Math.floor(n / G.size)], G.cols[n % G.size]);
+  function draw() {
+    const size = G.size, i = Math.floor(G.pos / size), j = G.pos % size;
+    $('board').querySelectorAll('.cell').forEach(c => {
+      const n = +c.dataset.n;
+      c.className = 'cell num' + (n === G.pos ? ' cur' : (Math.floor(n / size) === i || n % size === j) && G.ans[n] == null ? ' rowcol' : '');
+      c.textContent = n === G.pos ? G.input : G.ans[n] == null ? '' : G.ans[n];
+    });
+    $('expr').innerHTML = `${G.rows[i]} ${OPS[G.op][1]} ${G.cols[j]} = <span class="ans">${G.input || '&nbsp;'}</span>`;
+    $('progress').textContent = `${G.ans.filter(v => v != null).length} / ${size * size}`;
+  }
+  // 入力中の値を確定（advance=true なら次の空きマスへ）
+  function commit(advance) {
+    if (G.input !== '') G.ans[G.pos] = +G.input;
+    if (!advance) return;
+    G.input = '';
+    const total = G.size * G.size;
+    for (let k = 1; k <= total; k++) { const n = (G.pos + k) % total; if (G.ans[n] == null) { G.pos = n; return draw(); } }
+    finish();
+  }
+  function press(k) {
+    if (!G.playing) return;
+    if (k === '⌫') { G.input = G.input.slice(0, -1); return draw(); }
+    if (k === '次へ') { if (G.input === '') return; return commit(true); }
+    if (G.input.length >= 3) return;
+    G.input = (G.input === '0' ? '' : G.input) + k;
+    draw();
+    // 桁がそろったら自動で次へ（その間に手動で進めた・消した場合は何もしない）
+    if (G.input.length >= String(correctOf(G.pos)).length) { const p = G.pos, v = G.input; setTimeout(() => { if (G.playing && G.pos === p && G.input === v) commit(true); }, 90); }
+  }
+  const keysEl = $('keys');
+  ['7', '8', '9', '4', '5', '6', '1', '2', '3', '⌫', '0', '次へ'].forEach(k => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = k;
+    if (k === '次へ') b.className = 'ok'; if (k === '⌫') { b.className = 'bs'; b.setAttribute('aria-label', '1文字消す'); }
+    b.addEventListener('pointerdown', e => { e.preventDefault(); press(k); });
+    b.addEventListener('click', e => { if (e.detail === 0) press(k); });
+    keysEl.appendChild(b);
+  });
+  document.addEventListener('keydown', e => {
+    if (!G.playing) return;
+    if (/^[0-9]$/.test(e.key)) press(e.key);
+    else if (e.key === 'Backspace') press('⌫');
+    else if (e.key === 'Enter') press('次へ');
+  });
+  $('quitBtn').onclick = () => {
+    const b = $('quitBtn');
+    if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'もう一度押すと終了'; setTimeout(() => { b.classList.remove('armed'); b.textContent = 'やめる'; }, 3000); return; }
+    G.playing = false; clearInterval(G.timer); show('setup'); renderSetup();
+  };
+
+  function finish() {
+    G.playing = false; clearInterval(G.timer);
+    const time = Math.round((performance.now() - G.startAt) / 100) / 10, total = G.size * G.size;
+    const miss = []; G.ans.forEach((v, n) => { if (v !== correctOf(n)) miss.push(n); });
+    const kind = G.op + G.size, prev = db.records.filter(r => r.kind === kind);
+    const perfect = prev.filter(r => r.correct === r.total), oldBest = perfect.length ? Math.min(...perfect.map(r => r.time)) : null;
+    const rec = { date: fmt(new Date()), kind, time, correct: total - miss.length, total };
+    db.records.push(rec); if (db.records.length > 500) db.records.splice(0, db.records.length - 500); save();
+    $('resKind').textContent = kindName(G.op, G.size);
+    $('resTime').textContent = sec(time);
+    $('resScore').textContent = miss.length ? `${rec.correct} / ${total} 正解` : `全問正解！ ${total} / ${total}`;
+    $('resBadge').innerHTML = !miss.length && (oldBest == null || time < oldBest) ? '<span class="badge">🏆 自己ベスト更新！</span>' : '';
+    const last = prev[prev.length - 1];
+    $('resDiff').textContent = last ? `前回より ${Math.abs(time - last.time).toFixed(1)}秒 ${time <= last.time ? '速い' : '遅い'}` : 'はじめての記録です';
+    $('missBox').innerHTML = miss.length ? '<ul class="miss"></ul>' : '<div class="empty">まちがいはありません。すばらしい！</div>';
+    miss.forEach(n => {
+      const li = document.createElement('li'), i = Math.floor(n / G.size), j = n % G.size;
+      li.textContent = `${G.rows[i]}${OPS[G.op][1]}${G.cols[j]}＝${correctOf(n)}（あなた：${G.ans[n]}）`;
+      $('missBox').firstChild.appendChild(li);
+    });
+    buildBoard($('resBoard'), G.size, false);
+    $('resBoard').querySelectorAll('.cell').forEach(c => { const n = +c.dataset.n; c.textContent = G.ans[n]; if (miss.includes(n)) c.classList.add('ng'); });
+    $('resBoard').hidden = G.size === 10 && !miss.length;
+    show('result');
+  }
+  function show(id) { ['setup', 'play', 'result'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  $('startBtn').onclick = start;
+  $('againBtn').onclick = start;
+  $('backBtn').onclick = () => { show('setup'); renderSetup(); };
+
+  const applyTheme = () => { if (db.theme) document.documentElement.dataset.theme = db.theme; else delete document.documentElement.dataset.theme; };
+  $('themeBtn').onclick = () => { const dark = db.theme ? db.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; db.theme = dark ? 'light' : 'dark'; applyTheme(); save(); };
+  applyTheme(); renderSetup();
+})();
+</script>
+</body>
+</html>
