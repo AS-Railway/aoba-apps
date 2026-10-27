@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f4ef">
+<title>ととのう</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --surface: #ffffff; --surface-2: #efece5; --text: #23262b; --muted: #6b6f76;
+    --line: #e2ded5; --accent: #2f8f6f; --accent-soft: #dcefe7; --accent-text: #ffffff;
+    --warn: #c0563c; --water: #3b82c4; --water-soft: #dde9f5; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+    --radius: 18px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --surface: #1e2125; --surface-2: #272b30; --text: #e9e7e2; --muted: #9a9ea5;
+      --line: #30353b; --accent: #5cc29c; --accent-soft: #23382f; --accent-text: #0f1a15;
+      --warn: #e88a72; --water: #7ab4e6; --water-soft: #1f2d3a; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --surface: #1e2125; --surface-2: #272b30; --text: #e9e7e2; --muted: #9a9ea5;
+    --line: #30353b; --accent: #5cc29c; --accent-soft: #23382f; --accent-text: #0f1a15;
+    --warn: #e88a72; --water: #7ab4e6; --water-soft: #1f2d3a; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px 96px; display: flex; flex-direction: column; gap: 14px; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* header */
+  header { display: flex; align-items: center; gap: 14px; padding: 8px 2px 4px; }
+  .ring { width: 64px; height: 64px; flex: none; position: relative; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; }
+  .hello { flex: 1; min-width: 0; }
+  .hello h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
+  .hello p { margin: 0; color: var(--muted); font-size: 14px; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 18px; }
+
+  /* cards */
+  .card { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+  .card h2 { margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .tag { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: auto; }
+  .card .sub { margin: 2px 0 12px; color: var(--muted); font-size: 13px; }
+  .card.hero { border: 2px solid var(--accent); }
+  .card.hero::before { content: "いまのおすすめ"; display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; }
+
+  /* list rows */
+  ul.rows { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .row { display: flex; align-items: center; gap: 4px; background: var(--surface-2); border-radius: 12px; }
+  .row label { flex: 1; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 12px; cursor: pointer; min-width: 0; }
+  .row input[type=checkbox] { appearance: none; width: 24px; height: 24px; flex: none; border: 2px solid var(--muted); border-radius: 8px; display: grid; place-items: center; margin: 0; transition: background .15s, border-color .15s; }
+  .row input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent); }
+  .row input[type=checkbox]:checked::after { content: ""; width: 6px; height: 12px; border: solid var(--accent-text); border-width: 0 3px 3px 0; transform: translateY(-2px) rotate(45deg); }
+  .row .txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .row input:checked + .txt { color: var(--muted); text-decoration: line-through; }
+  .row .streak { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .row .streak.hot { color: var(--warn); font-weight: 700; }
+  .row .del { width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: 20px; border-radius: 10px; flex: none; }
+  .editing-off .del { display: none; }
+  .empty { color: var(--muted); font-size: 14px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; border: 1px dashed var(--line); }
+
+  /* inputs */
+  form.add { display: flex; gap: 8px; }
+  form.add input { flex: 1; min-width: 0; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px; }
+  .btn { height: 48px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-text); font-weight: 700; white-space: nowrap; }
+  .btn.ghost { background: var(--surface-2); color: var(--text); font-weight: 500; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .link { background: none; border: 0; color: var(--accent); font-size: 14px; min-height: 44px; padding: 0 4px; }
+  .bar-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* water */
+  .water { display: flex; align-items: center; gap: 12px; }
+  .cups { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .cups span { aspect-ratio: 3/4; border-radius: 4px 4px 8px 8px; background: var(--water-soft); border: 1.5px solid var(--water); opacity: .6; transition: background .2s, opacity .2s; }
+  .cups span.on { background: var(--water); opacity: 1; }
+  .water .big { width: 64px; height: 64px; border-radius: 50%; font-size: 26px; background: var(--water); color: #fff; border: 0; flex: none; }
+  .water .small { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); flex: none; }
+  .count { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .count b { color: var(--text); font-size: 20px; }
+
+  /* mood */
+  .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
+  .moods button { min-height: 56px; border-radius: 14px; border: 2px solid transparent; background: var(--surface-2); font-size: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+  .moods button small { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .moods button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); }
+  .chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 90px; }
+  .chart .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+  .chart .b { width: 100%; max-width: 28px; border-radius: 6px 6px 3px 3px; background: var(--accent); min-height: 3px; }
+  .chart .b.none { background: var(--line); }
+  .chart .col span { font-size: 11px; color: var(--muted); }
+  .chart .col.today span { color: var(--text); font-weight: 700; }
+
+  /* breath */
+  .stage { height: 200px; display: grid; place-items: center; overflow: hidden; position: relative; }
+  .orb { width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--accent-soft), var(--accent)); transition: transform 4s ease-in-out; }
+  .stage .say { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; font-size: 18px; color: var(--text); text-shadow: 0 0 8px var(--surface); }
+  .breath-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .breath-foot .muted { color: var(--muted); font-size: 14px; }
+
+  /* good */
+  .good-saved { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .good-saved p { margin: 0 0 4px; }
+  .past { list-style: none; padding: 0; margin: 10px 0 0; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .past b { color: var(--text); font-weight: 500; margin-right: 6px; }
+
+  /* carry over */
+  .carry { display: flex; align-items: center; gap: 8px; justify-content: space-between; background: var(--surface-2); border-radius: 12px; padding: 4px 4px 4px 12px; margin-bottom: 10px; font-size: 14px; }
+
+  /* toast */
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; visibility: hidden; background: var(--text); color: var(--bg); padding: 10px 10px 10px 16px; border-radius: 14px; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); width: max-content; transition: transform .25s, opacity .25s, visibility .25s; z-index: 10; font-size: 15px; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+  .toast button { background: none; border: 0; color: var(--accent); font-weight: 700; min-height: 40px; padding: 0 8px; filter: brightness(1.3); }
+  .pop { animation: pop .4s ease; }
+  @keyframes pop { 50% { transform: scale(1.06); } }
+
+  footer { text-align: center; font-size: 13px; color: var(--muted); display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  footer button { background: none; border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 14px; color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="ring" aria-hidden="true">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="27" fill="none" stroke="var(--line)" stroke-width="7"/>
+        <circle id="ringArc" cx="32" cy="32" r="27" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="169.6" style="transition: stroke-dashoffset .4s"/>
+      </svg>
+      <b id="ringPct">0%</b>
+    </div>
+    <div class="hello">
+      <h1 id="greet">おはようございます</h1>
+      <p id="dateLabel"></p>
+    </div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="表示テーマを切り替え">◐</button>
+  </header>
+
+  <section class="card" id="c-tasks" aria-labelledby="h-tasks">
+    <h2 id="h-tasks">今日の3つ <span class="tag" id="taskTag">0 / 3</span></h2>
+    <p class="sub">今日はこれだけできれば十分、を3つまで。</p>
+    <div id="carry"></div>
+    <ul class="rows" id="taskList"></ul>
+    <form class="add" id="taskForm">
+      <label class="sr" for="taskInput">今日やることを入力</label>
+      <input id="taskInput" placeholder="例：請求書を送る" enterkeyhint="done" autocomplete="off" maxlength="60">
+      <button class="btn" id="taskAddBtn">追加</button>
+    </form>
+  </section>
+
+  <section class="card editing-off" id="c-habits" aria-labelledby="h-habits">
+    <h2 id="h-habits">小さな習慣 <span class="tag" id="habitTag"></span></h2>
+    <p class="sub">続いた日数が、あなたの味方になります。</p>
+    <ul class="rows" id="habitList"></ul>
+    <div class="bar-actions">
+      <button class="link" type="button" id="habitEdit">習慣を編集</button>
+    </div>
+    <form class="add" id="habitForm" hidden>
+      <label class="sr" for="habitInput">新しい習慣</label>
+      <input id="habitInput" placeholder="例：日光を5分浴びる" enterkeyhint="done" autocomplete="off" maxlength="30">
+      <button class="btn">追加</button>
+    </form>
+  </section>
+
+  <section class="card" id="c-water" aria-labelledby="h-water">
+    <h2 id="h-water">水分 <span class="tag">目標 8杯</span></h2>
+    <p class="sub">コップ1杯（約200ml）ごとにタップ。</p>
+    <div class="water">
+      <button class="small" type="button" id="waterMinus" aria-label="1杯減らす">−</button>
+      <div class="cups" id="cups" aria-hidden="true"></div>
+      <button class="big" type="button" id="waterPlus" aria-label="1杯飲んだ">+</button>
+    </div>
+    <div class="count" aria-live="polite"><b id="waterCount">0</b> / 8 杯</div>
+  </section>
+
+  <section class="card" id="c-mood" aria-labelledby="h-mood">
+    <h2 id="h-mood">いまの気分</h2>
+    <p class="sub">1タップで記録。何度でも変えられます。</p>
+    <div class="moods" id="moods" role="group" aria-label="気分を選ぶ"></div>
+    <div class="chart" id="chart" role="img"></div>
+  </section>
+
+  <section class="card" id="c-breath" aria-labelledby="h-breath">
+    <h2 id="h-breath">1分の深呼吸 <span class="tag">ボックス呼吸</span></h2>
+    <p class="sub">4秒吸う → 4秒止める → 4秒吐く → 4秒止める を4回。</p>
+    <div class="stage">
+      <div class="orb" id="orb"></div>
+      <div class="say" id="say" aria-live="assertive">準備OK</div>
+    </div>
+    <div class="breath-foot">
+      <span class="muted" id="breathInfo">約64秒</span>
+      <button class="btn" type="button" id="breathBtn">はじめる</button>
+    </div>
+  </section>
+
+  <section class="card" id="c-good" aria-labelledby="h-good">
+    <h2 id="h-good">今日よかったこと</h2>
+    <p class="sub">小さなことでOK。1行だけ。</p>
+    <div id="goodSaved"></div>
+    <form class="add" id="goodForm">
+      <label class="sr" for="goodInput">今日よかったこと</label>
+      <input id="goodInput" placeholder="例：コーヒーがおいしかった" enterkeyhint="done" autocomplete="off" maxlength="100">
+      <button class="btn" id="goodBtn">保存</button>
+    </form>
+    <ul class="past" id="past"></ul>
+  </section>
+
+  <footer>
+    <button type="button" id="exportBtn">データを書き出す</button>
+    <button type="button" id="importBtn">読み込む</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastBtn" hidden></button></div>
+
+<script>
+(() => {
+  const KEY = 'totonou-v2';
+  const DAY_START_HOUR = 4; // 深夜4時までは「前日」扱い
+  const $ = id => document.getElementById(id);
+  const MOODS = [['😫', 'つらい'], ['😕', 'いまいち'], ['😐', 'ふつう'], ['🙂', 'いい感じ'], ['😄', '最高']];
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- 日付（端末のローカル時刻・4時区切り） ----
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayKey = () => fmt(new Date(Date.now() - DAY_START_HOUR * 3600e3));
+  const shiftKey = (key, n) => { const [y, m, d] = key.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
+  const keyToDate = key => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d); };
+
+  // ---- データ ----
+  const fresh = () => ({
+    habits: [{ id: 'h1', name: 'ストレッチ' }, { id: 'h2', name: '10分歩く' }, { id: 'h3', name: '朝の光を浴びる' }],
+    days: {}, theme: null
+  });
+  function load() {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { return fresh(); }
+    if (!raw) return fresh();
+    try {
+      const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.habits) || typeof d.days !== 'object') throw new Error('bad');
+      return d;
+    } catch (e) {
+      try { localStorage.setItem(KEY + '-broken-' + Date.now(), raw); } catch (_) {}
+      setTimeout(() => toast('保存データが壊れていたため退避し、新しく始めました'), 300);
+      return fresh();
+    }
+  }
+  let db = load();
+  let saveWarned = false;
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); saveWarned = false; }
+    catch (e) { if (!saveWarned) { toast('保存できませんでした（プライベートモードや容量不足の可能性）'); saveWarned = true; } }
+  }
+  function day(k = todayKey()) {
+    if (!db.days[k]) db.days[k] = { tasks: [], habits: {}, water: 0, mood: null, good: '' };
+    return db.days[k];
+  }
+  const peek = k => db.days[k] || null;
+  const isDone = (d, id) => !!d && Object.prototype.hasOwnProperty.call(d.habits, id) && d.habits[id] === true;
+  const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // 別タブでの変更を取り込む
+  addEventListener('storage', e => { if (e.key === KEY) { db = load(); render(); } });
+
+  // ---- 連続日数：今日が未チェックなら昨日から数える ----
+  function streak(id) {
+    let k = todayKey();
+    if (!isDone(peek(k), id)) k = shiftKey(k, -1);
+    let n = 0;
+    while (isDone(peek(k), id)) { n++; k = shiftKey(k, -1); }
+    return n;
+  }
+
+  // ---- トースト（元に戻す付き） ----
+  let toastTimer;
+  function toast(msg, actionLabel, action) {
+    $('toastMsg').textContent = msg;
+    const b = $('toastBtn');
+    b.hidden = !actionLabel;
+    if (actionLabel) { b.textContent = actionLabel; b.onclick = () => { action(); hideToast(); }; }
+    $('toast').classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, actionLabel ? 5000 : 2600);
+  }
+  const hideToast = () => $('toast').classList.remove('show');
+  const pop = el => { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
+
+  // ---- 時間帯に合わせた並び ----
+  function timeSlot() {
+    const h = new Date().getHours();
+    if (h >= DAY_START_HOUR && h < 11) return 'morning';
+    if (h >= 11 && h < 18) return 'day';
+    return 'night';
+  }
+  const ORDER = {
+    morning: ['c-tasks', 'c-habits', 'c-water', 'c-mood', 'c-breath', 'c-good'],
+    day: ['c-water', 'c-tasks', 'c-breath', 'c-habits', 'c-mood', 'c-good'],
+    night: ['c-good', 'c-mood', 'c-breath', 'c-habits', 'c-tasks', 'c-water']
+  };
+  const GREET = { morning: 'おはようございます', day: 'こんにちは', night: 'おつかれさまでした' };
+  let lastSlot = null;
+  function arrange() {
+    const s = timeSlot();
+    if (s === lastSlot) return;
+    lastSlot = s;
+    const wrap = $('app'), foot = wrap.querySelector('footer');
+    ORDER[s].forEach((id, i) => { const el = $(id); el.classList.toggle('hero', i === 0); wrap.insertBefore(el, foot); });
+    $('greet').textContent = GREET[s];
+  }
+
+  // ---- 描画 ----
+  function render() {
+    const k = todayKey(), t = day(k);
+    arrange();
+    const dd = keyToDate(k);
+    $('dateLabel').textContent = dd.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+
+    // 今日の3つ
+    const tl = $('taskList'); tl.innerHTML = '';
+    if (!t.tasks.length) tl.innerHTML = '<li class="empty">まだありません。いちばん大事なことを1つ書いてみましょう。</li>';
+    t.tasks.forEach((task, i) => {
+      const li = document.createElement('li'); li.className = 'row';
+      li.innerHTML = `<label><input type="checkbox"><span class="txt"></span></label><button class="del" type="button">×</button>`;
+      const cb = li.querySelector('input'); cb.checked = task.done;
+      li.querySelector('.txt').textContent = task.text;
+      li.querySelector('.del').setAttribute('aria-label', `「${task.text}」を削除`);
+      cb.onchange = () => {
+        task.done = cb.checked; save(); render();
+        if (t.tasks.length && t.tasks.every(x => x.done)) toast('今日の3つ、ぜんぶ完了！ 🎉');
+      };
+      li.querySelector('.del').onclick = () => {
+        const removed = t.tasks.splice(i, 1)[0]; save(); render();
+        toast('削除しました', '元に戻す', () => { t.tasks.splice(i, 0, removed); save(); render(); });
+      };
+      tl.appendChild(li);
+    });
+    const full = t.tasks.length >= 3;
+    $('taskInput').disabled = full; $('taskAddBtn').disabled = full;
+    $('taskInput').placeholder = full ? '3つそろいました。あとは片付けるだけ' : '例：請求書を送る';
+    $('taskTag').textContent = `${t.tasks.filter(x => x.done).length} / ${t.tasks.length || 3}`;
+
+    // 昨日の未完了を持ち越し
+    const y = peek(shiftKey(k, -1));
+    const left = y ? y.tasks.filter(x => !x.done && !t.tasks.some(z => z.text === x.text)) : [];
+    const carry = $('carry'); carry.innerHTML = '';
+    if (left.length && !full && !t.carried) {
+      carry.innerHTML = `<div class="carry"><span>昨日の未完了が ${left.length} 件</span><span><button class="link" type="button" data-a="skip">いらない</button><button class="link" type="button" data-a="take">持ち越す</button></span></div>`;
+      carry.querySelector('[data-a=take]').onclick = () => {
+        left.slice(0, 3 - t.tasks.length).forEach(x => t.tasks.push({ text: x.text, done: false }));
+        t.carried = true; save(); render();
+      };
+      carry.querySelector('[data-a=skip]').onclick = () => { t.carried = true; save(); render(); };
+    }
+
+    // 習慣
+    const hl = $('habitList'); hl.innerHTML = '';
+    if (!db.habits.length) hl.innerHTML = '<li class="empty">習慣がありません。「習慣を編集」から追加できます。</li>';
+    db.habits.forEach((h, i) => {
+      const li = document.createElement('li'); li.className = 'row';
+      const s = streak(h.id), done = isDone(t, h.id);
+      li.innerHTML = `<label><input type="checkbox"><span class="txt"></span><span class="streak"></span></label><button class="del" type="button">×</button>`;
+      const cb = li.querySelector('input'); cb.checked = done;
+      li.querySelector('.txt').textContent = h.name;
+      const st = li.querySelector('.streak');
+      st.textContent = s ? `🔥 ${s}日` : '';
+      st.classList.toggle('hot', s >= 3);
+      if (!done && s) st.title = '今日チェックすると記録が伸びます';
+      li.querySelector('.del').setAttribute('aria-label', `習慣「${h.name}」を削除`);
+      cb.onchange = () => {
+        if (cb.checked) t.habits[h.id] = true; else delete t.habits[h.id];
+        save(); render();
+        const ns = streak(h.id);
+        if (cb.checked) {
+          if (ns > 0 && ns % 7 === 0) toast(`「${h.name}」${ns}日連続！ すごい 🔥`);
+          else if (db.habits.every(x => isDone(t, x.id))) toast('今日の習慣、ぜんぶ達成 ✨');
+        }
+      };
+      li.querySelector('.del').onclick = () => {
+        const removed = db.habits.splice(i, 1)[0]; save(); render();
+        toast(`「${removed.name}」を削除しました`, '元に戻す', () => { db.habits.splice(i, 0, removed); save(); render(); });
+      };
+      hl.appendChild(li);
+    });
+    const hd = db.habits.filter(h => isDone(t, h.id)).length;
+    $('habitTag').textContent = db.habits.length ? `${hd} / ${db.habits.length}` : '';
+
+    // 水分
+    $('waterCount').textContent = t.water;
+    $('cups').innerHTML = Array.from({ length: 8 }, (_, i) => `<span class="${i < t.water ? 'on' : ''}"></span>`).join('');
+    $('waterMinus').disabled = t.water === 0;
+
+    // 気分
+    const m = $('moods'); m.innerHTML = '';
+    MOODS.forEach(([face, label], i) => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.innerHTML = `<span aria-hidden="true">${face}</span><small>${label}</small>`;
+      b.setAttribute('aria-label', label);
+      b.setAttribute('aria-pressed', t.mood === i + 1);
+      b.onclick = () => { t.mood = t.mood === i + 1 ? null : i + 1; save(); render(); };
+      m.appendChild(b);
+    });
+    const chart = $('chart'); chart.innerHTML = ''; const desc = [];
+    for (let n = 6; n >= 0; n--) {
+      const kk = shiftKey(k, -n), v = (peek(kk) || {}).mood || 0, d = keyToDate(kk);
+      const wd = n === 0 ? '今日' : d.toLocaleDateString('ja-JP', { weekday: 'short' });
+      const col = document.createElement('div'); col.className = 'col' + (n === 0 ? ' today' : '');
+      col.innerHTML = `<div class="b ${v ? '' : 'none'}" style="height:${v ? v * 20 : 4}%"></div><span>${wd}</span>`;
+      if (v) col.querySelector('.b').title = MOODS[v - 1][1];
+      chart.appendChild(col);
+      desc.push(`${wd}: ${v ? MOODS[v - 1][1] : '記録なし'}`);
+    }
+    chart.setAttribute('aria-label', '直近7日の気分。' + desc.join('、'));
+
+    // よかったこと
+    const gs = $('goodSaved'); gs.innerHTML = '';
+    if (t.good) {
+      gs.innerHTML = '<div class="good-saved"><p></p><button class="link" type="button" data-a="edit">書き直す</button></div>';
+      gs.querySelector('p').textContent = '✓ ' + t.good;
+      gs.querySelector('[data-a=edit]').onclick = () => { $('goodInput').value = t.good; $('goodForm').hidden = false; $('goodInput').focus(); };
+      if (document.activeElement !== $('goodInput')) $('goodForm').hidden = true;
+    } else $('goodForm').hidden = false;
+    const past = $('past'); past.innerHTML = '';
+    Object.keys(db.days).filter(x => x < k && db.days[x].good).sort().reverse().slice(0, 3).forEach(x => {
+      const li = document.createElement('li');
+      li.innerHTML = '<b></b><span></span>';
+      li.querySelector('b').textContent = keyToDate(x).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+      li.querySelector('span').textContent = db.days[x].good;
+      past.appendChild(li);
+    });
+
+    // 今日の達成度リング（3つ・習慣・水・気分・よかったこと）
+    const parts = [
+      t.tasks.length ? t.tasks.filter(x => x.done).length / t.tasks.length : 0,
+      db.habits.length ? hd / db.habits.length : 0,
+      Math.min(t.water, 8) / 8, t.mood ? 1 : 0, t.good ? 1 : 0
+    ];
+    const pct = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length * 100);
+    $('ringArc').style.strokeDashoffset = 169.6 * (1 - pct / 100);
+    $('ringPct').textContent = pct + '%';
+  }
+
+  // ---- 入力 ----
+  $('taskForm').onsubmit = e => {
+    e.preventDefault();
+    const inp = $('taskInput'), v = inp.value.trim(), t = day();
+    if (!v || t.tasks.length >= 3) return;
+    t.tasks.push({ text: v, done: false }); inp.value = ''; save(); render();
+    if (!inp.disabled) inp.focus();
+  };
+  $('habitEdit').onclick = () => {
+    const c = $('c-habits'), on = c.classList.toggle('editing-off');
+    $('habitForm').hidden = on;
+    $('habitEdit').textContent = on ? '習慣を編集' : '編集を終える';
+    if (!on) $('habitInput').focus();
+  };
+  $('habitForm').onsubmit = e => {
+    e.preventDefault();
+    const inp = $('habitInput'), v = inp.value.trim();
+    if (!v) return;
+    if (db.habits.some(h => h.name === v)) { toast('同じ名前の習慣があります'); return; }
+    db.habits.push({ id: uid(), name: v }); inp.value = ''; save(); render(); inp.focus();
+  };
+  $('waterPlus').onclick = () => {
+    const t = day(); t.water++; save(); render(); pop($('cups'));
+    if (t.water === 8) toast('今日の水分、目標達成 💧');
+  };
+  $('waterMinus').onclick = () => { const t = day(); t.water = Math.max(0, t.water - 1); save(); render(); };
+  $('goodForm').onsubmit = e => {
+    e.preventDefault();
+    const v = $('goodInput').value.trim();
+    if (!v) { toast('1行だけ書いてみてください'); return; }
+    day().good = v; $('goodInput').value = ''; $('goodInput').blur(); save(); render();
+    toast('記録しました。おやすみなさい 🌙');
+  };
+
+  // ---- 深呼吸（4サイクルで自動終了） ----
+  const PHASES = [['吸って', 1.9], ['止めて', 1.9], ['吐いて', 1], ['止めて', 1]];
+  const CYCLES = 4;
+  let bTimer = null, bStep = 0, bSec = 0;
+  function stopBreath(done) {
+    clearInterval(bTimer); bTimer = null;
+    $('orb').style.transform = 'scale(1)';
+    $('say').textContent = done ? 'おつかれさま' : '準備OK';
+    $('breathBtn').textContent = done ? 'もう一度' : 'はじめる';
+    $('breathInfo').textContent = '約64秒';
+    if (done) toast('深呼吸できました。肩の力、抜けましたか？');
+  }
+  $('breathBtn').onclick = () => {
+    if (bTimer) return stopBreath(false);
+    bStep = 0; bSec = 0;
+    $('breathBtn').textContent = 'やめる';
+    const tick = () => {
+      if (bSec % 4 === 0) {
+        if (bStep >= CYCLES * 4) return stopBreath(true);
+        const [word, sc] = PHASES[bStep % 4];
+        $('say').textContent = word;
+        if (!reduceMotion) $('orb').style.transform = `scale(${sc})`;
+        bStep++;
+      }
+      $('breathInfo').textContent = `${Math.ceil(bStep / 4)} / ${CYCLES} 回目・${4 - (bSec % 4)}`;
+      bSec++;
+    };
+    tick(); bTimer = setInterval(tick, 1000);
+  };
+
+  // ---- テーマ ----
+  const applyTheme = () => { if (db.theme) document.documentElement.dataset.theme = db.theme; else delete document.documentElement.dataset.theme; };
+  $('themeBtn').onclick = () => {
+    const dark = db.theme ? db.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    db.theme = dark ? 'light' : 'dark'; applyTheme(); save();
+  };
+
+  // ---- 書き出し・読み込み ----
+  $('exportBtn').onclick = () => {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `totonou-${todayKey()}.json`; a.click(); URL.revokeObjectURL(a.href);
+  };
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || !Array.isArray(d.habits) || typeof d.days !== 'object') throw 0;
+      if (!confirm('今のデータを読み込んだデータで置き換えます。よろしいですか？')) return;
+      db = d; save(); applyTheme(); render(); toast('読み込みました');
+    } catch (_) { toast('このファイルは読み込めませんでした'); }
+  };
+
+  // ---- 日付・時間帯の変化を自動反映 ----
+  let shownKey = todayKey();
+  setInterval(() => {
+    const k = todayKey(), s = timeSlot();
+    if (k !== shownKey || s !== lastSlot) { shownKey = k; if (!bTimer) render(); }
+  }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+  applyTheme();
+  render();
+})();
+</script>
+</body>
+</html>
