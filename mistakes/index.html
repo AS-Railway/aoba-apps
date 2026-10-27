@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>まちがいノート</title>
+<style>
+  :root {
+    --bg: #f5f3ee; --surface: #fff; --surface-2: #eeebe4; --text: #1f2328; --muted: #5f646c; --line: #dfdbd2;
+    --accent: #2e5fb3; --accent-soft: #e1e9f7; --on: #fff; --good: #1f7a4d; --good-soft: #dcefe4; --bad: #b0432b; --bad-soft: #f8e3dc;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; } }
+  :root[data-theme="dark"] {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; touch-action: manipulation; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .num { font-variant-numeric: tabular-nums; }
+  .app { max-width: 1240px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; gap: 10px; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; }
+  .icon-btn { min-width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; }
+  .grid { display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; min-width: 0; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 .r { margin-left: auto; font-weight: 400; }
+  fieldset { border: 0; padding: 0; margin: 0 0 10px; }
+  legend { font-size: 13px; color: var(--muted); margin-bottom: 4px; padding: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { min-height: 44px; padding: 0 12px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--surface); font-size: 15px; }
+  .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+  .chip.add { border-style: dashed; color: var(--muted); }
+  input { height: 48px; width: 100%; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font-size: 16px; }
+  .btn { min-height: 52px; width: 100%; border-radius: 14px; border: 0; background: var(--accent); color: var(--on); font-weight: 800; font-size: 17px; }
+  .field { margin-bottom: 10px; }
+  .err { color: var(--bad); font-size: 13px; min-height: 1.2em; margin: 4px 0 0; }
+
+  .progress { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+  .progress i { display: block; height: 100%; background: var(--good); }
+  .items { display: flex; flex-direction: column; gap: 10px; }
+  .item { background: var(--surface-2); border-radius: 16px; padding: 12px; }
+  .item .where { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+  .item .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; align-items: center; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); }
+  .dots { font-size: 13px; color: var(--good); letter-spacing: 2px; margin-left: auto; }
+  .item .memo { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .item .acts { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 6px; margin-top: 8px; }
+  .item .acts button { min-height: 48px; border-radius: 12px; border: 0; font-weight: 800; }
+  .item .ok { background: var(--good); color: var(--on); }
+  .item .ng { background: var(--bad-soft); color: var(--bad); }
+  .item .mini { width: 44px; background: var(--surface) !important; color: var(--muted); border: 1px solid var(--line) !important; font-weight: 400 !important; }
+  .empty { color: var(--muted); font-size: 14px; padding: 14px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  .trend { display: flex; flex-direction: column; gap: 8px; }
+  .trend .r { display: grid; grid-template-columns: 5.5em 1fr 2.5em; gap: 8px; align-items: center; font-size: 14px; }
+  .trend .track { height: 14px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+  .trend .fill { height: 100%; background: var(--accent); border-radius: 99px; }
+  .trend .top .fill { background: var(--bad); }
+  .trend .c { text-align: right; font-weight: 700; }
+  .advice { background: var(--accent-soft); border-radius: 14px; padding: 12px 14px; margin-top: 12px; font-size: 14px; }
+  .advice b { display: block; margin-bottom: 2px; }
+  .kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .kpi div { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; }
+  .kpi span { display: block; font-size: 12px; color: var(--muted); }
+  .kpi b { font-size: 20px; }
+  .foot { display: flex; gap: 8px; margin-top: 12px; }
+  .foot button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 13px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; visibility: hidden; background: var(--text); color: var(--bg); padding: 8px 8px 8px 16px; border-radius: 14px; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 32px); width: max-content; transition: all .25s; z-index: 20; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+  .toast button { background: none; border: 0; color: var(--bg); font-weight: 800; text-decoration: underline; min-height: 40px; padding: 0 8px; }
+
+  @media (min-width: 900px) and (orientation: landscape) {
+    .app { height: 100vh; height: 100dvh; padding: 16px 20px; }
+    .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1.15fr 0.95fr; gap: 14px; }
+    .card { display: flex; flex-direction: column; min-height: 0; }
+    .card .scroll { flex: 1; min-height: 0; overflow-y: auto; }
+    fieldset { margin-bottom: 8px; }
+    .chip { min-height: 44px; padding: 0 10px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>まちがいノート</h1>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="ライト・ダークを切り替え">◐</button>
+  </header>
+  <div class="grid">
+    <section class="card" aria-labelledby="h-add">
+      <h2 id="h-add">ミスを登録</h2>
+      <form id="addForm" novalidate>
+        <fieldset><legend>科目</legend><div class="chips" id="subjChips" role="group" aria-label="科目"></div></fieldset>
+        <div class="field">
+          <label class="sr" for="where">どの問題</label>
+          <input id="where" placeholder="どの問題？（例：ワーク p.32 問5）" maxlength="60" autocomplete="off" enterkeyhint="next">
+        </div>
+        <fieldset><legend>なぜ間違えた？</legend><div class="chips" id="whyChips" role="group" aria-label="理由"></div></fieldset>
+        <div class="field">
+          <label class="sr" for="memo">メモ</label>
+          <input id="memo" placeholder="メモ（正しい考え方など・省略可）" maxlength="120" autocomplete="off" enterkeyhint="done">
+        </div>
+        <button class="btn" id="addBtn">登録する</button>
+        <p class="err" id="err" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="h-rev">
+      <h2 id="h-rev">今日の解き直し <span class="r num" id="revCount"></span></h2>
+      <div class="progress" aria-hidden="true"><i id="revBar" style="width:0"></i></div>
+      <div class="scroll"><div class="items" id="items"></div></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-trend">
+      <h2 id="h-trend">ミスの傾向</h2>
+      <div class="trend" id="trend"></div>
+      <div class="advice" id="advice" hidden></div>
+      <div class="kpi">
+        <div><span>登録</span><b class="num" id="kAll">0</b></div>
+        <div><span>解き直し待ち</span><b class="num" id="kWait">0</b></div>
+        <div><span>卒業</span><b class="num" id="kGrad">0</b></div>
+      </div>
+      <div class="foot">
+        <button type="button" id="exportBtn">データを書き出す</button>
+        <button type="button" id="importBtn">読み込む</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastBtn" hidden></button></div>
+
+<script>
+(() => {
+  const KEY = 'mistakes-v2';
+  const REASONS = ['計算ミス', '知識不足', '読み間違い', '時間切れ'];
+  const ADVICE = {
+    '計算ミス': '途中式を省かず、最後に検算する時間を1分とろう。',
+    '知識不足': '教科書の該当ページを読み直して、用語や公式を暗記カードにしよう。',
+    '読み間違い': '問題文の条件や「〜でないもの」に線を引いてから解こう。',
+    '時間切れ': '時間を計って解く練習をして、解く順番（得意な問題から）を決めておこう。'
+  };
+  const NEXT = [1, 3, 7]; // 正解した回数ごとの、次に解き直すまでの日数。3回で卒業
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => fmt(new Date());
+  const shiftKey = (k, n) => { const [y, m, d] = k.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const fresh = () => ({ items: [], subjects: ['数学', '英語', '国語', '理科', '社会'], last: { subj: '数学', why: '計算ミス' }, theme: null });
+
+  let db;
+  try { db = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch (e) { try { localStorage.setItem(KEY + '-broken-' + Date.now(), localStorage.getItem(KEY)); } catch (_) {} db = fresh(); }
+  let warned = false;
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); warned = false; } catch (e) { if (!warned) { toast('保存できませんでした。「データを書き出す」でバックアップしてください'); warned = true; } } };
+  let toastT;
+  function toast(msg, label, fn) {
+    $('toastMsg').textContent = msg; const b = $('toastBtn'); b.hidden = !label;
+    if (label) { b.textContent = label; b.onclick = () => { fn(); $('toast').classList.remove('show'); }; }
+    $('toast').classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), label ? 5000 : 2400);
+  }
+
+  // ---------- 登録 ----------
+  let sel = { ...db.last };
+  function chipRow(box, list, key, extra) {
+    box.innerHTML = '';
+    list.forEach(v => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = v;
+      b.setAttribute('aria-pressed', sel[key] === v);
+      b.onclick = () => { sel[key] = v; renderForm(); };
+      box.appendChild(b);
+    });
+    if (extra) box.appendChild(extra);
+  }
+  function renderForm() {
+    if (!db.subjects.includes(sel.subj)) sel.subj = db.subjects[0];
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'chip add'; add.textContent = '＋';
+    add.setAttribute('aria-label', '科目を追加');
+    add.onclick = () => {
+      const inp = document.createElement('input'); inp.placeholder = '科目名'; inp.maxLength = 10; inp.style.width = '8em'; inp.style.height = '44px';
+      inp.setAttribute('aria-label', '追加する科目名');
+      add.replaceWith(inp); inp.focus();
+      const done = () => { const v = inp.value.trim(); if (v && !db.subjects.includes(v)) { db.subjects.push(v); sel.subj = v; save(); } renderForm(); };
+      inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); done(); } if (e.key === 'Escape') renderForm(); };
+      inp.onblur = done;
+    };
+    chipRow($('subjChips'), db.subjects, 'subj', add);
+    chipRow($('whyChips'), REASONS, 'why');
+  }
+  $('where').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('memo').focus(); } });
+  $('addForm').onsubmit = e => {
+    e.preventDefault();
+    const where = $('where').value.trim();
+    if (!where) { $('err').textContent = 'どの問題かを入れてください'; $('where').focus(); return; }
+    $('err').textContent = '';
+    const it = { id: uid(), subj: sel.subj, where, why: sel.why, memo: $('memo').value.trim(), added: today(), due: shiftKey(today(), 1), ok: 0, last: null, done: false };
+    db.items.push(it); db.last = { ...sel }; save();
+    $('where').value = ''; $('memo').value = ''; $('where').focus();
+    render();
+    toast('登録しました。明日の解き直しに出ます', '取り消す', () => { db.items = db.items.filter(x => x.id !== it.id); save(); render(); });
+  };
+
+  // ---------- 解き直し ----------
+  const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  let editId = null;
+  function answer(it, ok) {
+    const before = { ...it }, t = today();
+    it.last = t; // 1日に何度も押して卒業できないよう、解いた日を記録して今日のリストから外す
+    if (ok) { it.ok++; if (it.ok >= NEXT.length) it.done = true; else it.due = shiftKey(t, NEXT[it.ok]); }
+    else { it.ok = 0; it.due = shiftKey(t, 1); }
+    save(); render();
+    toast(ok ? (it.done ? `🎓 卒業！「${it.where}」はもう大丈夫` : `正解！ 次は${NEXT[it.ok]}日後`) : 'また明日解き直しましょう', '取り消す', () => { Object.assign(it, before); save(); render(); });
+  }
+  function render() {
+    renderForm();
+    const t = today();
+    const dueList = db.items.filter(x => !x.done && x.due <= t && x.last !== t);
+    const doneToday = db.items.filter(x => x.last === t).length;
+    const totalToday = dueList.length + doneToday;
+    $('revCount').textContent = totalToday ? `${doneToday} / ${totalToday} 完了` : '';
+    $('revBar').style.width = totalToday ? `${doneToday / totalToday * 100}%` : '0';
+    const box = $('items'); box.innerHTML = '';
+    if (!dueList.length) {
+      const waiting = db.items.filter(x => !x.done).length;
+      box.innerHTML = `<div class="empty">${!db.items.length ? 'まだ登録がありません。間違えた問題を左から登録すると、翌日からここに出てきます。'
+        : doneToday ? '今日の解き直しはすべて終わりました！ 🎉' : waiting ? '今日解き直す問題はありません。登録した問題は翌日から出てきます。' : 'すべて卒業しました！ 🎓'}</div>`;
+    }
+    dueList.forEach(it => box.appendChild(it.id === editId ? editCard(it) : itemCard(it)));
+    renderTrend();
+  }
+  function itemCard(it) {
+    const el = document.createElement('div'); el.className = 'item';
+    const dots = '●'.repeat(it.ok) + '○'.repeat(NEXT.length - it.ok);
+    el.innerHTML = `<div class="where"></div><div class="tags"><span class="tag"></span><span class="tag"></span><span class="dots" aria-label="連続正解 ${it.ok} / ${NEXT.length}">${dots}</span></div>
+      ${it.memo ? '<div class="memo"></div>' : ''}
+      <div class="acts"><button type="button" class="ok">◯ 正解</button><button type="button" class="ng" aria-label="また間違えた">✕ 不正解</button><button type="button" class="mini" aria-label="編集">✎</button><button type="button" class="mini" aria-label="削除">🗑</button></div>`;
+    el.querySelector('.where').textContent = it.where;
+    const tags = el.querySelectorAll('.tag'); tags[0].textContent = it.subj; tags[1].textContent = it.why;
+    if (it.memo) el.querySelector('.memo').textContent = 'メモ：' + it.memo;
+    const [ok, ng, ed, del] = el.querySelectorAll('button');
+    ok.onclick = () => answer(it, true); ng.onclick = () => answer(it, false);
+    ed.onclick = () => { editId = it.id; render(); };
+    del.onclick = () => { const i = db.items.indexOf(it); db.items.splice(i, 1); save(); render(); toast('削除しました', '元に戻す', () => { db.items.splice(i, 0, it); save(); render(); }); };
+    return el;
+  }
+  function editCard(it) {
+    const el = document.createElement('div'); el.className = 'item';
+    el.innerHTML = `<div class="field"><input aria-label="どの問題" maxlength="60"></div><div class="chips" style="margin-bottom:8px"></div><div class="field"><input aria-label="メモ" maxlength="120" placeholder="メモ"></div>
+      <div class="acts" style="grid-template-columns:1fr 1fr"><button type="button" class="ok">保存</button><button type="button" class="ng">やめる</button></div>`;
+    const [w, m] = el.querySelectorAll('input'); w.value = it.where; m.value = it.memo;
+    let why = it.why; const chips = el.querySelector('.chips');
+    const drawChips = () => { chips.innerHTML = ''; REASONS.forEach(r => { const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = r; b.setAttribute('aria-pressed', r === why); b.onclick = () => { why = r; drawChips(); }; chips.appendChild(b); }); };
+    drawChips();
+    const [s, c] = el.querySelectorAll('.acts button');
+    s.onclick = () => { if (w.value.trim()) { it.where = w.value.trim(); it.memo = m.value.trim(); it.why = why; save(); } editId = null; render(); };
+    c.onclick = () => { editId = null; render(); };
+    setTimeout(() => w.focus(), 0);
+    return el;
+  }
+  function renderTrend() {
+    const counts = REASONS.map(r => db.items.filter(x => x.why === r).length), max = Math.max(1, ...counts), top = Math.max(...counts);
+    $('trend').innerHTML = REASONS.map((r, i) => `<div class="r ${top && counts[i] === top ? 'top' : ''}"><span>${r}</span><span class="track"><span class="fill" style="display:block;width:${counts[i] / max * 100}%"></span></span><span class="c num">${counts[i]}</span></div>`).join('');
+    $('trend').setAttribute('aria-label', REASONS.map((r, i) => `${r}${counts[i]}件`).join('、'));
+    const adv = $('advice');
+    if (top) { const r = REASONS[counts.indexOf(top)]; adv.hidden = false; adv.innerHTML = `<b>いちばん多いのは「${r}」</b>${ADVICE[r]}`; } else adv.hidden = true;
+    $('kAll').textContent = db.items.length;
+    $('kWait').textContent = db.items.filter(x => !x.done).length;
+    $('kGrad').textContent = db.items.filter(x => x.done).length;
+  }
+
+  // ---------- バックアップ ----------
+  $('exportBtn').onclick = () => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(db, null, 1)], { type: 'application/json' }));
+    a.download = `machigai-${today()}.json`; a.click(); URL.revokeObjectURL(a.href); toast('書き出しました');
+  };
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.items)) throw 0; const backup = JSON.stringify(db); db = Object.assign(fresh(), d); sel = { ...db.last }; save(); render(); toast('読み込みました', '元に戻す', () => { db = JSON.parse(backup); save(); render(); }); }
+    catch (_) { toast('このファイルは読み込めませんでした'); }
+  };
+
+  const applyTheme = () => { if (db.theme) document.documentElement.dataset.theme = db.theme; else delete document.documentElement.dataset.theme; };
+  $('themeBtn').onclick = () => { const dark = db.theme ? db.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; db.theme = dark ? 'light' : 'dark'; applyTheme(); save(); };
+  applyTheme(); render();
+  let shown = today();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && today() !== shown) { shown = today(); render(); } });
+})();
+</script>
+</body>
+</html>
