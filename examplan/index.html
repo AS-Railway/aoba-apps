@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>逆算プランナー</title>
+<style>
+  :root {
+    --bg: #f5f3ee; --surface: #fff; --surface-2: #eeebe4; --text: #1f2328; --muted: #5f646c; --line: #dfdbd2;
+    --accent: #2e5fb3; --accent-soft: #e1e9f7; --on: #fff; --good: #1f6b45; --good-soft: #dcefe4; --bad: #a8402a; --bad-soft: #f8e3dc;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; } }
+  :root[data-theme="dark"] {
+    --bg: #121519; --surface: #1b1f25; --surface-2: #252a32; --text: #e9ebee; --muted: #a2a8b1; --line: #313741;
+    --accent: #8db4ff; --accent-soft: #213049; --on: #0d1522; --good: #8fd3ad; --good-soft: #1f382c; --bad: #f0a48c; --bad-soft: #3d2620; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; touch-action: manipulation; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .num { font-variant-numeric: tabular-nums; }
+  .app { max-width: 1180px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+  .grid { display: flex; flex-direction: column; gap: 14px; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 .link { margin-left: auto; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > * { min-width: 0; }
+  input, select { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font-size: 16px; }
+  input.grow { flex: 1 1 160px; }
+  .btn { min-height: 48px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--accent); color: var(--on); font-weight: 700; }
+  .btn.ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+  .link { background: none; border: 0; color: var(--accent); min-height: 44px; padding: 0 6px; font-size: 14px; }
+  .err { color: var(--bad); font-size: 13px; margin: 6px 0 0; min-height: 1em; }
+
+  .count { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
+  .count b { font-size: clamp(48px, 9vh, 80px); font-weight: 300; line-height: 1; }
+  .count span { color: var(--muted); }
+  .status { margin-top: 10px; border-radius: 14px; padding: 12px 14px; background: var(--surface-2); font-size: 15px; }
+  .status.good { background: var(--good-soft); color: var(--good); }
+  .status.bad { background: var(--bad-soft); color: var(--bad); }
+  .status b { font-size: 17px; }
+  .total { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .total .big { font-size: 22px; font-weight: 700; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .subj { background: var(--surface-2); border-radius: 16px; padding: 12px 14px; }
+  .subj .top { display: flex; align-items: baseline; gap: 8px; }
+  .subj .name { font-weight: 700; font-size: 17px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .subj .q { font-size: 15px; color: var(--muted); }
+  .subj .q b { font-size: 24px; color: var(--text); }
+  .subj.done .q b { color: var(--good); }
+  .bar { height: 8px; border-radius: 99px; background: var(--line); margin: 8px 0; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .subj.done .bar i { background: var(--good); }
+  .subj .meta { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .subj .meta .ahead { color: var(--good); font-weight: 700; }
+  .subj .meta .behind { color: var(--bad); font-weight: 700; }
+  .subj .acts { display: grid; grid-template-columns: 1fr 1fr 1fr 1.6fr; gap: 6px; margin-top: 8px; }
+  .subj .acts button { min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; }
+  .subj .acts .fill { background: var(--accent); color: var(--on); border-color: var(--accent); }
+  .subj.done .acts .fill { background: var(--surface); color: var(--good); border-color: var(--good); }
+  .edit-grid { display: grid; grid-template-columns: 1fr 90px 90px; gap: 6px; margin-top: 8px; }
+  .edit-grid input, .edit-grid select { width: 100%; }
+  .edit-actions { display: flex; justify-content: space-between; margin-top: 6px; }
+  .del { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 14px; padding: 14px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; visibility: hidden; background: var(--text); color: var(--bg); padding: 8px 8px 8px 16px; border-radius: 14px; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 32px); width: max-content; transition: all .25s; z-index: 20; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+  .toast button { background: none; border: 0; color: var(--bg); font-weight: 800; text-decoration: underline; min-height: 40px; padding: 0 8px; }
+
+  @media (min-width: 900px) and (orientation: landscape) {
+    .app { height: 100vh; height: 100dvh; padding: 18px 24px; }
+    .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1.3fr; gap: 18px; }
+    .col.right .card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .col.right .list { flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>逆算プランナー</h1>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="ライト・ダークを切り替え">◐</button>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="card" aria-labelledby="h-exam">
+        <h2 id="h-exam">テスト</h2>
+        <div class="row">
+          <label class="sr" for="examName">テスト名</label>
+          <input id="examName" class="grow" placeholder="例：2学期 期末テスト" maxlength="30" autocomplete="off">
+          <label class="sr" for="examDate">テストの日</label>
+          <input id="examDate" type="date">
+        </div>
+        <div class="count" id="countBox" aria-live="polite"></div>
+        <div class="status" id="status" role="status"></div>
+      </section>
+      <section class="card" aria-labelledby="h-add">
+        <h2 id="h-add">範囲（科目）を追加</h2>
+        <form class="row" id="addForm" novalidate>
+          <label class="sr" for="aName">科目</label>
+          <input id="aName" class="grow" placeholder="例：数学ワーク" maxlength="20" autocomplete="off" enterkeyhint="next">
+          <label class="sr" for="aTotal">総量</label>
+          <input id="aTotal" type="number" inputmode="numeric" min="1" max="9999" placeholder="総量" style="width:96px" enterkeyhint="done">
+          <label class="sr" for="aUnit">単位</label>
+          <select id="aUnit"><option>ページ</option><option>問</option><option>章</option><option>回</option></select>
+          <button class="btn">追加</button>
+        </form>
+        <p class="err" id="addErr" aria-live="polite"></p>
+      </section>
+    </div>
+    <div class="col right">
+      <section class="card" aria-labelledby="h-today">
+        <div class="total">
+          <h2 id="h-today" style="margin:0">今日やる量</h2>
+          <span class="big num" id="todaySum"></span>
+          <button class="link" type="button" id="editBtn">編集</button>
+        </div>
+        <div class="list" id="list"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastBtn" hidden></button></div>
+
+<script>
+(() => {
+  const KEY = 'examplan-v2';
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => fmt(new Date());
+  const toDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const diffDays = (a, b) => Math.round((toDate(b) - toDate(a)) / 86400000); // b - a（ローカル日付）
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  let db;
+  try { db = Object.assign({ exam: { name: '', date: '' }, subjects: [], theme: null }, JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch (e) { try { localStorage.setItem(KEY + '-broken-' + Date.now(), localStorage.getItem(KEY)); } catch (_) {} db = { exam: { name: '', date: '' }, subjects: [], theme: null }; }
+  let warned = false;
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); warned = false; } catch (e) { if (!warned) { toast('保存できませんでした'); warned = true; } } };
+
+  let toastT;
+  function toast(msg, label, fn) {
+    $('toastMsg').textContent = msg; const b = $('toastBtn'); b.hidden = !label;
+    if (label) { b.textContent = label; b.onclick = () => { fn(); $('toast').classList.remove('show'); }; }
+    $('toast').classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), label ? 5000 : 2400);
+  }
+
+  // ---------- 計算 ----------
+  // 状態: none（日付なし）／plan（2日以上前）／eve（前日＝見直し日）／day（当日）／over（終了）
+  function phase() {
+    if (!db.exam.date) return { kind: 'none' };
+    const left = diffDays(today(), db.exam.date);
+    if (left >= 2) return { kind: 'plan', left, work: left - 1 }; // 今日〜前々日までが勉強日
+    return { kind: left === 1 ? 'eve' : left === 0 ? 'day' : 'over', left };
+  }
+  const sumLog = (s, pred) => Object.entries(s.log).filter(([d]) => pred(d)).reduce((a, [, v]) => a + v, 0);
+  function calc(s, ph) {
+    const t = today();
+    const before = sumLog(s, d => d < t), doneToday = s.log[t] || 0, doneAll = before + doneToday;
+    const quota = ph.kind === 'plan' ? Math.ceil(Math.max(0, s.total - before) / ph.work) : 0;
+    // 予定とのズレ：登録日から前々日までを均等に進めた場合の「昨日までに終わっているはずの量」と比べる
+    let pace = null;
+    if (ph.kind === 'plan') {
+      const span = Math.max(1, diffDays(s.created, db.exam.date) - 1);
+      const passed = Math.min(span, Math.max(0, diffDays(s.created, t)));
+      pace = Math.round(doneAll - s.total * passed / span);
+    }
+    return { before, doneToday, doneAll, quota, remain: Math.max(0, s.total - doneAll), pace };
+  }
+
+  // ---------- 描画 ----------
+  let editing = false;
+  function render() {
+    const ph = phase();
+    if (document.activeElement !== $('examName')) $('examName').value = db.exam.name;
+    $('examDate').value = db.exam.date;
+    const name = db.exam.name || 'テスト';
+    const cb = $('countBox'), st = $('status');
+    st.className = 'status';
+    const rows = db.subjects.map(s => [s, calc(s, ph)]);
+    const allDone = rows.length && rows.every(([, c]) => c.remain === 0);
+    if (ph.kind === 'none') { cb.innerHTML = '<span>テストの日を入れると、毎日のノルマを計算します</span>'; st.textContent = '① テストの日 → ② 範囲（科目と総量）を追加、の順に入れてください。'; }
+    else if (ph.kind === 'plan') {
+      cb.innerHTML = `<span>${esc(name)}まで</span><b class="num">${ph.left}</b><span>日</span>`;
+      const behind = rows.filter(([, c]) => c.pace < 0);
+      if (!rows.length) st.textContent = '範囲（科目と総量）を追加してください。';
+      else if (allDone) { st.className = 'status good'; st.innerHTML = '<b>範囲はすべて終わりました！</b> 残りの日は復習にあてましょう。'; }
+      else if (behind.length) { st.className = 'status bad'; st.innerHTML = `<b>⚠ ${behind.length}科目が予定より遅れています。</b> ノルマは残りの日数で自動で引き直しています。`; }
+      else { st.className = 'status good'; st.innerHTML = `<b>✓ 予定どおりです。</b> 勉強できる日はあと ${ph.work}日（前日は見直し日）。`; }
+    } else if (ph.kind === 'eve') { cb.innerHTML = `<span>${esc(name)}は</span><b>明日</b>`; st.className = 'status good'; st.innerHTML = '<b>今日は見直し日。</b> 新しい範囲は進めず、間違えた問題と要点の確認だけにしましょう。'; }
+    else if (ph.kind === 'day') { cb.innerHTML = `<b>今日</b><span>が${esc(name)}</span>`; st.className = 'status good'; st.innerHTML = '<b>ここまでよく準備しました。</b> 落ち着いて、いつもどおりに。'; }
+    else {
+      cb.innerHTML = `<span>${esc(name)}は</span><b>終了</b>`;
+      const done = rows.reduce((a, [s, c]) => a + Math.min(1, c.doneAll / s.total), 0);
+      st.innerHTML = `<b>おつかれさまでした。</b> 範囲の達成率は ${rows.length ? Math.round(done / rows.length * 100) : 0}% でした。<br><button class="link" type="button" id="nextExam" style="padding:0">次のテストを始める（科目は残して記録をリセット）</button>`;
+      $('nextExam').onclick = () => {
+        const backup = JSON.stringify(db);
+        db.exam = { name: '', date: '' }; db.subjects.forEach(s => { s.log = {}; s.created = today(); }); save(); render();
+        toast('記録をリセットしました', '元に戻す', () => { db = JSON.parse(backup); save(); render(); });
+        $('examDate').focus();
+      };
+    }
+
+    // 今日やる量
+    const sum = rows.reduce((a, [s, c]) => { (a[s.unit] = a[s.unit] || [0, 0]); a[s.unit][0] += Math.min(c.doneToday, c.quota); a[s.unit][1] += c.quota; return a; }, {});
+    $('todaySum').textContent = ph.kind === 'plan' ? Object.entries(sum).map(([u, [d, q]]) => `${d}/${q}${u}`).join('・') : '';
+    $('editBtn').textContent = editing ? '完了' : '編集';
+    $('editBtn').hidden = !db.subjects.length;
+    const list = $('list'); list.innerHTML = '';
+    if (!rows.length) list.innerHTML = '<div class="empty">まだ範囲がありません。左の「範囲（科目）を追加」から、例えば「数学ワーク・48ページ」のように入れてください。</div>';
+    rows.forEach(([s, c]) => list.appendChild(editing ? editCard(s) : subjCard(s, c, ph)));
+  }
+  const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+  function subjCard(s, c, ph) {
+    const el = document.createElement('div');
+    const met = ph.kind === 'plan' && c.doneToday >= c.quota;
+    el.className = 'subj' + (met || c.remain === 0 ? ' done' : '');
+    const qText = ph.kind === 'plan'
+      ? (c.remain === 0 ? '<b>完了</b>' : `<b class="num">${c.doneToday}</b> / ${c.quota} ${esc(s.unit)}${met ? ' ✓' : ''}`)
+      : `<b class="num">${c.doneToday}</b> ${esc(s.unit)}（今日）`;
+    const pace = c.pace == null ? '' : c.pace >= 0 ? `<span class="ahead">▲ 予定より ${c.pace}${esc(s.unit)} 先行</span>` : `<span class="behind">▼ 予定より ${-c.pace}${esc(s.unit)} 遅れ</span>`;
+    el.innerHTML = `<div class="top"><span class="name"></span><span class="q">${qText}</span></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.min(100, c.doneAll / s.total * 100)}%"></i></div>
+      <div class="meta"><span>全体 ${c.doneAll} / ${s.total}${esc(s.unit)}（残り ${c.remain}）</span>${pace}</div>
+      <div class="acts"><button type="button" data-d="-1" aria-label="${esc(s.name)}を1${esc(s.unit)}減らす">−1</button><button type="button" data-d="1">+1</button><button type="button" data-d="5">+5</button>
+      <button type="button" class="fill">${ph.kind === 'plan' && c.quota > c.doneToday ? 'ノルマ分 完了' : '数を入力'}</button></div>`;
+    el.querySelector('.name').textContent = s.name;
+    const set = v => {
+      const prev = c.doneToday, t = today();
+      v = Math.max(0, Math.min(v, s.total - c.before));
+      if (v === prev) return;
+      if (v) s.log[t] = v; else delete s.log[t];
+      save(); render();
+      if (ph.kind === 'plan' && v >= c.quota && prev < c.quota) toast(`${s.name} 今日のノルマ達成！`, '元に戻す', () => { if (prev) s.log[t] = prev; else delete s.log[t]; save(); render(); });
+    };
+    el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => set(c.doneToday + +b.dataset.d));
+    el.querySelector('.fill').onclick = () => {
+      if (ph.kind === 'plan' && c.quota > c.doneToday) return set(c.quota);
+      // 数を直接入力
+      const acts = el.querySelector('.acts');
+      acts.innerHTML = `<input type="number" inputmode="numeric" min="0" aria-label="${esc(s.name)}の今日やった量" style="grid-column:span 3;width:100%" value="${c.doneToday}"><button type="button" class="fill">決定</button>`;
+      const inp = acts.querySelector('input'); inp.focus(); inp.select();
+      const ok = () => set(Math.floor(+inp.value || 0)) || render();
+      acts.querySelector('button').onclick = ok;
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') render(); };
+    };
+    return el;
+  }
+
+  function editCard(s) {
+    const el = document.createElement('div'); el.className = 'subj';
+    el.innerHTML = `<div class="edit-grid"><input aria-label="科目名" maxlength="20"><input type="number" inputmode="numeric" min="1" aria-label="総量"><select aria-label="単位"><option>ページ</option><option>問</option><option>章</option><option>回</option></select></div>
+      <div class="edit-actions"><button type="button" class="link del">この科目を削除</button></div>`;
+    const [n, t, u] = el.querySelectorAll('input, select');
+    n.value = s.name; t.value = s.total; u.value = s.unit;
+    n.onchange = () => { const v = n.value.trim(); if (v) { s.name = v; save(); } else n.value = s.name; };
+    t.onchange = () => { const v = Math.floor(+t.value); if (v >= 1) { s.total = v; save(); } else t.value = s.total; };
+    u.onchange = () => { s.unit = u.value; save(); };
+    el.querySelector('.del').onclick = () => {
+      const i = db.subjects.indexOf(s); db.subjects.splice(i, 1); save(); render();
+      toast(`「${s.name}」を削除しました`, '元に戻す', () => { db.subjects.splice(i, 0, s); save(); render(); });
+    };
+    return el;
+  }
+
+  // ---------- 入力 ----------
+  $('examName').addEventListener('input', () => { db.exam.name = $('examName').value.trim(); save(); });
+  $('examName').addEventListener('change', render);
+  $('examName').addEventListener('keydown', e => { if (e.key === 'Enter') $('examDate').focus(); });
+  $('examDate').addEventListener('change', () => { db.exam.date = $('examDate').value; save(); render(); });
+  $('addForm').onsubmit = e => {
+    e.preventDefault();
+    const name = $('aName').value.trim(), total = Math.floor(+$('aTotal').value);
+    if (!name) { $('addErr').textContent = '科目名を入れてください'; $('aName').focus(); return; }
+    if (!(total >= 1 && total <= 9999)) { $('addErr').textContent = '総量は1〜9999の数字で入れてください'; $('aTotal').focus(); return; }
+    $('addErr').textContent = '';
+    db.subjects.push({ id: uid(), name, total, unit: $('aUnit').value, log: {}, created: today() });
+    $('aName').value = ''; $('aTotal').value = ''; save(); render(); $('aName').focus();
+    toast(`「${name}」を追加しました`);
+  };
+  $('aName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('aTotal').focus(); } });
+  $('editBtn').onclick = () => { editing = !editing; render(); };
+
+  const applyTheme = () => { if (db.theme) document.documentElement.dataset.theme = db.theme; else delete document.documentElement.dataset.theme; };
+  $('themeBtn').onclick = () => { const dark = db.theme ? db.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; db.theme = dark ? 'light' : 'dark'; applyTheme(); save(); };
+
+  applyTheme(); render();
+  let shown = today();
+  setInterval(() => { if (today() !== shown) { shown = today(); render(); } }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { shown = today(); render(); } });
+})();
+</script>
+</body>
+</html>
